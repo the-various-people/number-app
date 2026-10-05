@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { stickerFor } from '../../../src/components/stickers';
 import { ChoiceItem } from '../../../src/items/components/ChoiceItem';
 import { CountingItem } from '../../../src/items/components/CountingItem';
+import { LineSelectItem } from '../../../src/items/components/LineSelectItem';
 import { getItem, ITEM_CODES } from '../../../src/items/registry';
 import { diagnosisPath } from '../../../src/navigation';
 import { nextItem } from '../../../src/scoring';
@@ -45,6 +46,8 @@ export default function DiagnosisItemScreen() {
       </View>
       {def.kind === 'counting' ? (
         <CountingItem key={key} def={def} sticker={sticker} onAnswer={handleAnswer} />
+      ) : def.kind === 'lineSelect' ? (
+        <LineSelectItem key={key} def={def} sticker={sticker} onAnswer={handleAnswer} />
       ) : (
         <ChoiceItem key={key} def={def} sticker={sticker} onAnswer={handleAnswer} />
       )}

@@ -58,6 +58,16 @@ export interface FlashItemDef extends ChoiceItemBase {
   answerCards: AnswerCardsDef;
 }
 
+/** D1: 닫힌 상자(쿠키 boxCount개) + 더 온 쿠키 addedCount개. 상자를 누르면 열린다. */
+export interface CountOnItemDef extends ChoiceItemBase {
+  kind: 'countOn';
+  /** 쿠키 그림 */
+  object: string;
+  boxCount: number;
+  addedCount: number;
+  answerCards: AnswerCardsDef;
+}
+
 /** D2: 화면의 수 다음에 오는 수 */
 export interface NextNumberItemDef extends ChoiceItemBase {
   kind: 'nextNumber';
@@ -81,11 +91,28 @@ export interface NumeralChoiceItemDef extends ChoiceItemBase {
   perRow: number;
 }
 
+/** F1: 두 무리 중 많은 쪽을 누른다. 답은 고른 무리의 개수로 저장한다. */
+export interface CompareGroupsItemDef extends ChoiceItemBase {
+  kind: 'compareGroups';
+  /** 왼쪽, 오른쪽. big이면 그림을 크게 그려 자리를 많이 차지한다. */
+  groups: { emoji: string; label: string; count: number; size: 'big' | 'small' }[];
+}
+
 export type ChoiceItemDef =
   | HiddenOrderItemDef
+  | CountOnItemDef
+  | CompareGroupsItemDef
   | FlashItemDef
   | NextNumberItemDef
   | FillTenItemDef
   | NumeralChoiceItemDef;
 
-export type ItemDef = CountingItemDef | ChoiceItemDef;
+/** B1, B2: 줄 선 동물을 눌러 고르고(다시 누르면 취소) ✓ 버튼으로 답한다. 왼쪽 깃발 쪽이 앞이다. */
+export interface LineSelectItemDef extends BaseItemDef {
+  kind: 'lineSelect';
+  animals: string[];
+  /** 정답 자리 (앞에서 1번째부터) */
+  answer: number[];
+}
+
+export type ItemDef = CountingItemDef | ChoiceItemDef | LineSelectItemDef;

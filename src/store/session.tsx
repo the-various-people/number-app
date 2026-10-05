@@ -1,12 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { repository } from '../db/repository';
-import type { ItemResponse, Session } from '../db/types';
+import { DEFAULT_PREFERENCES, type Child, type ItemResponse, type Preferences, type Session } from '../db/types';
 import { ITEM_CODES } from '../items/registry';
 import { itemStatuses, nextItem, resolveStrategy, scoreResponse } from '../scoring';
 import type { ItemCode, ItemStatus, Score, StrategyCode } from '../scoring';
 
-export type { ItemResponse, Session } from '../db/types';
+export type { Child, ItemResponse, Session } from '../db/types';
 
 export type NewItemResponse = Pick<
   ItemResponse,
@@ -18,6 +18,10 @@ type Responses = Partial<Record<ItemCode, ItemResponse>>;
 interface SessionStore {
   /** 저장소에서 지난 회기를 다 불러왔는지 */
   loaded: boolean;
+  childList: Child[];
+  /** 다음 진단을 할 아이와 함께하는 어른 (어른 화면에서 고름) */
+  preferences: Preferences;
+  /** 지금 보고 있는 회기 = 고른 아이의 가장 최근 회기 */
   session: Session | null;
   responses: Responses;
   statuses: Partial<Record<ItemCode, ItemStatus>>;
@@ -25,11 +29,18 @@ interface SessionStore {
   next: ItemCode | null;
   /** 문항을 다시 할 때마다 올라간다. 아이 화면이 이 값을 key로 써서 상태를 초기화한다. */
   attempts: Partial<Record<ItemCode, number>>;
+  /** 아이를 등록하고 그 아이를 고른다 */
+  addChild(nickname: string, birthMonth: string): Child;
+  /** 아이를 고른다 (null이면 아이 없이). 그 아이의 가장 최근 회기를 불러온다. */
+  selectChild(childId: string | null): void;
+  setAdultRole(role: Session['adultRole']): void;
+  /** 고른 아이와 어른 역할로 새 회기를 시작한다 */
   startSession(): void;
   /** 저장한 결과를 돌려준다 (다음 문항 계산용) */
   saveResponse(input: NewItemResponse): ItemResponse;
   setHelped(itemCode: ItemCode, helped: boolean): void;
   setStrategyOverride(itemCode: ItemCode, strategy: StrategyCode | null): void;
+  setNote(itemCode: ItemCode, note: string): void;
   resetItem(itemCode: ItemCode): void;
 }
 
@@ -51,50 +62,77 @@ export function scoresOf(responses: Responses): Partial<Record<ItemCode, Score>>
   return scores;
 }
 
-const newSession = (): Session => ({
+const newSession = ({ currentChildId, adultRole }: Preferences): Session => ({
   id: `session-${Date.now()}`,
-  childId: null,
+  childId: currentChildId,
   type: 'pre',
   startedAt: Date.now(),
-  adultRole: null,
+  adultRole,
 });
 
 const persist = (task: Promise<void>) =>
   task.catch((e) => console.warn('기록을 저장하지 못했어요', e));
 
 /**
- * 진단 회기 상태. 화면은 바로 바뀌고, 저장은 뒤에서 저장소(SQLite 또는 브라우저 저장소)에 한다.
- * 앱을 다시 열면 가장 최근 회기를 불러온다.
+ * 아이 목록과 진단 회기 상태. 화면은 바로 바뀌고, 저장은 뒤에서 저장소(SQLite 또는 브라우저 저장소)에 한다.
+ * 앱을 다시 열면 마지막에 고른 아이의 가장 최근 회기를 불러온다.
  */
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
+  const [childList, setChildList] = useState<Child[]>([]);
+  const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [session, setSession] = useState<Session | null>(null);
   const [responses, setResponses] = useState<Responses>({});
   const [attempts, setAttempts] = useState<SessionStore['attempts']>({});
   // 저장 함수가 최신 값을 바로 읽을 수 있게 같은 값을 ref에도 둔다.
   const sessionRef = useRef<Session | null>(null);
   const responsesRef = useRef<Responses>({});
+  const preferencesRef = useRef<Preferences>(DEFAULT_PREFERENCES);
+  /** 아이를 바꿀 때마다 올라간다. 늦게 도착한 이전 아이의 기록이 화면을 덮지 않게 한다. */
+  const loadTicket = useRef(0);
 
   const commitResponses = useCallback((next: Responses) => {
     responsesRef.current = next;
     setResponses(next);
   }, []);
 
-  const commitSession = useCallback((next: Session) => {
+  const commitSession = useCallback((next: Session | null) => {
     sessionRef.current = next;
     setSession(next);
   }, []);
+
+  const commitPreferences = useCallback((next: Preferences) => {
+    preferencesRef.current = next;
+    setPreferences(next);
+    persist(repository.savePreferences(next));
+  }, []);
+
+  /** 그 아이의 가장 최근 회기와 결과를 불러와 화면에 놓는다. */
+  const loadLatest = useCallback(
+    async (childId: string | null) => {
+      const ticket = ++loadTicket.current;
+      const latest = await repository.latestSession(childId);
+      const saved = latest ? await repository.listResponses(latest.id) : [];
+      if (ticket !== loadTicket.current) return; // 그사이 다른 아이를 골랐거나 새 회기를 시작했다
+      commitSession(latest);
+      commitResponses(Object.fromEntries(saved.map((r) => [r.itemCode, r])));
+    },
+    [commitResponses, commitSession],
+  );
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const latest = await repository.latestSession();
-        if (!active || !latest) return;
-        const saved = await repository.listResponses(latest.id);
-        if (!active || sessionRef.current) return; // 불러오는 사이에 새 회기가 시작됐으면 그대로 둔다
-        commitSession(latest);
-        commitResponses(Object.fromEntries(saved.map((r) => [r.itemCode, r])));
+        const [savedChildren, savedPreferences] = await Promise.all([
+          repository.listChildren(),
+          repository.loadPreferences(),
+        ]);
+        if (!active) return;
+        setChildList(savedChildren);
+        preferencesRef.current = savedPreferences;
+        setPreferences(savedPreferences);
+        await loadLatest(savedPreferences.currentChildId);
       } catch (e) {
         console.warn('지난 기록을 불러오지 못했어요', e);
       } finally {
@@ -104,10 +142,39 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [commitResponses, commitSession]);
+  }, [loadLatest]);
+
+  const addChild = useCallback(
+    (nickname: string, birthMonth: string) => {
+      const child: Child = { id: `child-${Date.now()}`, nickname, birthMonth, createdAt: Date.now() };
+      setChildList((prev) => [...prev, child]);
+      persist(repository.saveChild(child));
+      // 새 아이는 아직 기록이 없다
+      loadTicket.current++;
+      commitSession(null);
+      commitResponses({});
+      commitPreferences({ ...preferencesRef.current, currentChildId: child.id });
+      return child;
+    },
+    [commitPreferences, commitResponses, commitSession],
+  );
+
+  const selectChild = useCallback(
+    (childId: string | null) => {
+      commitPreferences({ ...preferencesRef.current, currentChildId: childId });
+      loadLatest(childId).catch((e) => console.warn('기록을 불러오지 못했어요', e));
+    },
+    [commitPreferences, loadLatest],
+  );
+
+  const setAdultRole = useCallback(
+    (adultRole: Session['adultRole']) => commitPreferences({ ...preferencesRef.current, adultRole }),
+    [commitPreferences],
+  );
 
   const startSession = useCallback(() => {
-    const s = newSession();
+    loadTicket.current++; // 불러오던 지난 기록이 새 회기를 덮지 않게
+    const s = newSession(preferencesRef.current);
     commitSession(s);
     commitResponses({});
     persist(repository.createSession(s));
@@ -116,7 +183,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   /** 회기 없이 문항 화면으로 바로 들어온 경우(새로고침 등)를 위해 필요할 때 회기를 만든다. */
   const ensureSession = useCallback((): Session => {
     if (sessionRef.current) return sessionRef.current;
-    const s = newSession();
+    loadTicket.current++;
+    const s = newSession(preferencesRef.current);
     commitSession(s);
     persist(repository.createSession(s));
     return s;
@@ -161,6 +229,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [update],
   );
 
+  const setNote = useCallback((itemCode: ItemCode, note: string) => update(itemCode, { note }), [update]);
+
   const resetItem = useCallback(
     (itemCode: ItemCode) => {
       const current = responsesRef.current[itemCode];
@@ -179,18 +249,40 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const scores = scoresOf(responses);
     return {
       loaded,
+      childList,
+      preferences,
       session,
       responses,
       statuses: itemStatuses(ITEM_CODES, scores),
       next: nextItem(ITEM_CODES, scores),
       attempts,
+      addChild,
+      selectChild,
+      setAdultRole,
       startSession,
       saveResponse,
       setHelped,
       setStrategyOverride,
+      setNote,
       resetItem,
     };
-  }, [loaded, session, responses, attempts, startSession, saveResponse, setHelped, setStrategyOverride, resetItem]);
+  }, [
+    loaded,
+    childList,
+    preferences,
+    session,
+    responses,
+    attempts,
+    addChild,
+    selectChild,
+    setAdultRole,
+    startSession,
+    saveResponse,
+    setHelped,
+    setStrategyOverride,
+    setNote,
+    resetItem,
+  ]);
 
   return <SessionContext.Provider value={value}>{children}</SessionContext.Provider>;
 }

@@ -53,10 +53,37 @@ describe('rows (SQLite 행 변환)', () => {
 describe('createWebRepository', () => {
   it('가장 최근 회기를 찾는다', async () => {
     const repo = createWebRepository(memoryStorage());
-    expect(await repo.latestSession()).toBeNull();
+    expect(await repo.latestSession(null)).toBeNull();
     await repo.createSession(session('old', 100));
     await repo.createSession(session('new', 200));
-    expect((await repo.latestSession())?.id).toBe('new');
+    expect((await repo.latestSession(null))?.id).toBe('new');
+  });
+
+  it('아이마다 가장 최근 회기를 따로 찾는다', async () => {
+    const repo = createWebRepository(memoryStorage());
+    await repo.createSession({ ...session('a-old', 100), childId: 'a' });
+    await repo.createSession({ ...session('b', 200), childId: 'b' });
+    await repo.createSession({ ...session('a-new', 300), childId: 'a' });
+    await repo.createSession(session('none', 400));
+    expect((await repo.latestSession('a'))?.id).toBe('a-new');
+    expect((await repo.latestSession('b'))?.id).toBe('b');
+    expect((await repo.latestSession(null))?.id).toBe('none');
+    expect(await repo.latestSession('c')).toBeNull();
+  });
+
+  it('아이를 저장하고, 같은 id면 고친다', async () => {
+    const repo = createWebRepository(memoryStorage());
+    const child = { id: 'c1', nickname: '하늘', birthMonth: '2021-05', createdAt: 1 };
+    await repo.saveChild(child);
+    await repo.saveChild({ ...child, nickname: '하늘이' });
+    expect(await repo.listChildren()).toEqual([{ ...child, nickname: '하늘이' }]);
+  });
+
+  it('고른 아이와 어른 역할을 기억한다', async () => {
+    const repo = createWebRepository(memoryStorage());
+    expect(await repo.loadPreferences()).toEqual({ currentChildId: null, adultRole: null });
+    await repo.savePreferences({ currentChildId: 'c1', adultRole: 'teacher' });
+    expect(await repo.loadPreferences()).toEqual({ currentChildId: 'c1', adultRole: 'teacher' });
   });
 
   it('결과를 저장하고, 같은 id면 덮어쓰고, 지울 수 있다', async () => {
@@ -80,6 +107,6 @@ describe('createWebRepository', () => {
   it('저장된 값이 깨져 있어도 멈추지 않는다', async () => {
     const storage = memoryStorage();
     storage.setItem('number-app:sessions', '{깨진 값');
-    expect(await createWebRepository(storage).latestSession()).toBeNull();
+    expect(await createWebRepository(storage).latestSession(null)).toBeNull();
   });
 });

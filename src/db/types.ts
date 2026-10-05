@@ -1,6 +1,15 @@
 import type { ItemAnswer, ItemCode, Score, StrategyCode, TouchEvent } from '../scoring/types';
 
-/** 7절 session. 아이 등록은 3단계에서 붙이므로 childId는 아직 비어 있을 수 있다. */
+/** 7절 child. 개인정보는 별명과 생년월만 받는다 (7절). */
+export interface Child {
+  id: string;
+  nickname: string;
+  /** YYYY-MM */
+  birthMonth: string;
+  createdAt: number;
+}
+
+/** 7절 session. 아이를 고르지 않고 시작한 회기는 childId가 null이다. */
 export interface Session {
   id: string;
   childId: string | null;
@@ -31,13 +40,29 @@ export interface ItemResponse {
   touches: TouchEvent[];
 }
 
+/** 어른 화면에서 고른 값. 앱을 다시 열어도 이어진다. */
+export interface Preferences {
+  /** 다음 진단을 할 아이 (null이면 아이를 고르지 않음) */
+  currentChildId: string | null;
+  /** 함께하는 어른 */
+  adultRole: Session['adultRole'];
+}
+
+export const DEFAULT_PREFERENCES: Preferences = { currentChildId: null, adultRole: null };
+
 /**
  * 저장소. 화면 코드는 이것만 쓴다.
  * 태블릿 앱은 SQLite(repository.native.ts), 웹은 브라우저 저장소(repository.ts)를 쓴다.
  */
 export interface Repository {
+  listChildren(): Promise<Child[]>;
+  /** 같은 id가 있으면 덮어쓴다. */
+  saveChild(child: Child): Promise<void>;
+  loadPreferences(): Promise<Preferences>;
+  savePreferences(preferences: Preferences): Promise<void>;
   createSession(session: Session): Promise<void>;
-  latestSession(): Promise<Session | null>;
+  /** 그 아이의 가장 최근 회기. childId가 null이면 아이를 고르지 않고 한 회기 중에서 찾는다. */
+  latestSession(childId: string | null): Promise<Session | null>;
   listResponses(sessionId: string): Promise<ItemResponse[]>;
   /** 같은 id가 있으면 덮어쓴다 (터치 기록 포함). */
   saveResponse(response: ItemResponse): Promise<void>;

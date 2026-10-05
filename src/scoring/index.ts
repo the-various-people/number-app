@@ -5,4 +5,5 @@ export * from './strategy';
 export * from './score';
 export * from './evaluate';
 export * from './choice';
+export * from './drag';
 export * from './skip';

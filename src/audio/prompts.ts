@@ -6,6 +6,9 @@
 export const PROMPTS = {
   'count.apples': { text: '사과를 하나씩 눌러서 세어 볼까? 모두 몇 개야?' },
   'count.stars': { text: '별을 하나씩 눌러서 세어 볼까? 모두 몇 개야?' },
+  'drag.basketSix': { text: '구슬 6개를 바구니에 넣어 줘. 다 했으면 초록 버튼을 눌러.' },
+  'drag.splitFive': { text: '구슬 5개를 두 접시에 나눠 담아 줘. 다 했으면 초록 버튼을 눌러.' },
+  'drag.splitAgain': { text: '다른 방법도 있을까? 또 나눠 담아 줘.' },
   'order.fifthAnimal': { text: '앞에서 다섯 번째 동물을 눌러 줘. 다 했으면 초록 버튼을 눌러.' },
   'order.fiveAnimals': { text: '앞에서 동물 다섯 마리를 눌러 줘. 다 했으면 초록 버튼을 눌러.' },
   'countOn.cookies': { text: '상자에 쿠키 5개가 있어. 3개가 더 왔어. 모두 몇 개야?' },

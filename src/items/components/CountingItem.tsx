@@ -7,6 +7,7 @@ import type { NewItemResponse } from '../../store/session';
 import type { CountingItemDef } from '../types';
 import { AnswerCards } from './AnswerCards';
 import { CountObject } from './CountObject';
+import { stageHeightFor } from './layout';
 import { RewardSticker } from './RewardSticker';
 import { useItemPrompt } from './useItemPrompt';
 
@@ -53,7 +54,9 @@ export function CountingItem({ def, sticker, onAnswer }: Props) {
   };
 
   // 흩어 놓을 때 대상 크기. 무대는 화면 높이의 약 절반이다.
-  const scatteredSize = Math.min(130, height * 0.16, width / 9);
+  const stageHeight = stageHeightFor(width, height, true);
+  const scatteredSize = Math.min(130, stageHeight * 0.3, width / 9);
+  const rowSize = Math.min(150, (width - 96) / def.count - 16, stageHeight * 0.8);
 
   const renderObject = (count: number, i: number, size: number) => (
     <CountObject
@@ -71,7 +74,7 @@ export function CountingItem({ def, sticker, onAnswer }: Props) {
         {def.layout === 'row' ? (
           <View style={styles.row}>
             {tapCounts.map((count, i) => (
-              <View key={i}>{renderObject(count, i, Math.min(150, (width - 96) / def.count - 16))}</View>
+              <View key={i}>{renderObject(count, i, rowSize)}</View>
             ))}
           </View>
         ) : (

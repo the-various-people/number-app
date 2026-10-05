@@ -18,6 +18,8 @@ export type StrategyCode =
   | 'ONE_TO_ONE_ERROR' // 1:1 대응 오류
   | 'RECOUNT' // 다시 세기
   | 'DELAYED' // 지연 응답
+  | 'MULTI_WAY' // 여러 가지 방법 (E1: 서로 다른 나눔 2가지 이상)
+  | 'SINGLE_WAY' // 한 가지 방법 (E1)
   | 'NONE' // 일반 응답: 전략을 나누지 않는 문항의 정답, 또는 D2·F2에서 늦지 않은 응답
   | 'UNCLASSIFIED'; // 판별 불가
 
@@ -29,5 +31,9 @@ export interface TouchEvent {
 
 export type Score = 0 | 1 | 2;
 
-/** 아이의 답. 대부분 수 하나이고, 여러 개를 고르는 문항(B1, B2)은 고른 자리(앞에서 1번째부터) 목록이다. */
+/**
+ * 아이의 답. 대부분 수 하나다.
+ * 여러 개를 고르는 문항(B1, B2)은 고른 자리(앞에서 1번째부터) 목록,
+ * E1은 나눔마다 왼쪽 × 10 + 오른쪽 목록이다 (drag.ts).
+ */
 export type ItemAnswer = number | number[];

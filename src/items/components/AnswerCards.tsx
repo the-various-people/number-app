@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 
+import { answerCardMetrics } from './layout';
+
 interface Props {
   min: number;
   max: number;
@@ -10,22 +12,16 @@ interface Props {
   onSelect(value: number): void;
 }
 
-const GAP = 12;
-const SIDE_PADDING = 24;
-const MIN_TOUCH = 64;
 
 /** 숫자와 그만큼의 점이 함께 그려진 답 카드. 점은 10격자처럼 위 줄 5개부터 채운다. */
 export function AnswerCards({ min, max, showNumeral, disabled, selected, onSelect }: Props) {
   const { width } = useWindowDimensions();
   const values = Array.from({ length: max - min + 1 }, (_, i) => min + i);
-  const cardWidth = Math.max(
-    MIN_TOUCH,
-    Math.min(110, (width - SIDE_PADDING * 2 - GAP * (values.length - 1)) / values.length),
-  );
+  const { gap, sidePadding, cardWidth } = answerCardMetrics(width);
   const dot = Math.floor(cardWidth / 7);
 
   return (
-    <View style={[styles.row, { opacity: disabled ? 0.4 : 1 }]}>
+    <View style={[styles.row, { gap, paddingHorizontal: sidePadding, opacity: disabled ? 0.4 : 1 }]}>
       {values.map((value) => (
         <Pressable
           key={value}
@@ -65,8 +61,6 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: GAP,
-    paddingHorizontal: SIDE_PADDING,
   },
   card: {
     backgroundColor: '#FFFFFF',

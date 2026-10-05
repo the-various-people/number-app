@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { promptPlayer } from '../../../src/audio/player';
@@ -20,6 +20,10 @@ export default function DiagnosisDoneScreen() {
   const { responses, startSession } = useSession();
   const earned = ITEM_CODES.filter((code) => responses[code]);
   const actions = useRef(new Animated.Value(0)).current;
+  // 휴대폰 가로 화면처럼 낮은 화면에서도 스티커 판과 ▶가 함께 보이게 줄인다.
+  const { height } = useWindowDimensions();
+  const stickerSize = Math.min(80, height / 9);
+  const replaySize = Math.min(120, height * 0.22);
 
   useEffect(() => {
     promptPlayer.play('praise.done');
@@ -40,18 +44,25 @@ export default function DiagnosisDoneScreen() {
   };
 
   return (
-    <View style={styles.screen}>
-      <View style={styles.board}>
+    <View style={[styles.screen, { gap: Math.min(40, height * 0.05) }]}>
+      <View style={[styles.board, { gap: stickerSize * 0.3, padding: stickerSize * 0.4 }]}>
         {earned.map((code) => (
-          <Text key={code} style={styles.sticker}>
+          <Text key={code} style={{ fontSize: stickerSize }}>
             {stickerFor(ITEM_CODES.indexOf(code))}
           </Text>
         ))}
       </View>
 
       <Animated.View style={[styles.actions, { opacity: actions }]}>
-        <Pressable onPress={restart} style={({ pressed }) => [styles.replay, pressed && styles.pressed]}>
-          <Svg width={64} height={64} viewBox="0 0 100 100">
+        <Pressable
+          onPress={restart}
+          style={({ pressed }) => [
+            styles.replay,
+            { width: replaySize, height: replaySize, borderRadius: replaySize / 2 },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Svg width={replaySize * 0.53} height={replaySize * 0.53} viewBox="0 0 100 100">
             <Path d="M32 20 L82 50 L32 80 Z" fill="#FFFFFF" />
           </Svg>
         </Pressable>
@@ -70,29 +81,20 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 40,
     backgroundColor: '#FFFDE7',
   },
   board: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
-    gap: 24,
     maxWidth: 900,
-    padding: 32,
     borderRadius: 32,
     backgroundColor: '#FFFFFF',
-  },
-  sticker: {
-    fontSize: 80,
   },
   actions: {
     alignItems: 'center',
   },
   replay: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#66BB6A',
@@ -102,7 +104,7 @@ const styles = StyleSheet.create({
   },
   adultHint: {
     position: 'absolute',
-    bottom: 24,
+    bottom: 8,
     fontSize: 16,
     color: '#90A4AE',
   },

@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
 import { Animated, View } from 'react-native';
 import Svg, { Circle, Ellipse, Path } from 'react-native-svg';
 
 import type { CountingItemDef } from '../types';
+import { useTapAnimation } from './useTapAnimation';
 
 interface Props {
   shape: CountingItemDef['object'];
@@ -15,33 +15,15 @@ interface Props {
 
 /** 임시 SVG 그림. 처음 누르면 쏙 들어가고, 다시 누르면 표시는 그대로 두고 살짝 흔들린다. */
 export function CountObject({ shape, size, tapCount, disabled, onTap }: Props) {
-  const scale = useRef(new Animated.Value(1)).current;
-  const wiggle = useRef(new Animated.Value(0)).current;
+  const { transform } = useTapAnimation(tapCount);
   const marked = tapCount > 0;
-
-  useEffect(() => {
-    if (tapCount === 1) {
-      Animated.spring(scale, { toValue: 0.82, friction: 4, useNativeDriver: true }).start();
-    } else if (tapCount > 1) {
-      wiggle.setValue(0);
-      Animated.sequence(
-        [1, -1, 1, 0].map((toValue) =>
-          Animated.timing(wiggle, { toValue, duration: 70, useNativeDriver: true }),
-        ),
-      ).start();
-    } else {
-      scale.setValue(1);
-    }
-  }, [tapCount, scale, wiggle]);
-
-  const rotate = wiggle.interpolate({ inputRange: [-1, 1], outputRange: ['-8deg', '8deg'] });
 
   return (
     // Pressable은 웹에서 onPressIn을 50ms 늦게 부르고 그 전에 손을 떼면 건너뛴다.
     // 짧은 톡 터치도 빠짐없이 그 순간에 기록하도록 responder grant(터치 시작)로 받는다.
     <View onStartShouldSetResponder={() => !disabled} onResponderGrant={onTap}>
       {/* SVG가 터치를 가로채지 않게 막는다. */}
-      <Animated.View style={{ width: size, height: size, pointerEvents: 'none', transform: [{ scale }, { rotate }] }}>
+      <Animated.View style={{ width: size, height: size, pointerEvents: 'none', transform }}>
         <Svg width={size} height={size} viewBox="0 0 100 100">
           {shape === 'apple' ? <AppleShape marked={marked} /> : <StarShape marked={marked} />}
           {marked && <Circle cx={50} cy={shape === 'apple' ? 60 : 55} r={13} fill="#FFFFFF" opacity={0.9} />}

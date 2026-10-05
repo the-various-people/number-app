@@ -24,5 +24,95 @@
     ],
     "promptId": "count.stars",
     "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
+    "code": "B3",
+    "kind": "hiddenOrder",
+    "label": "가리개 밑까지 세어 토끼가 몇 번째인지",
+    "promptId": "order.hiddenRabbit",
+    "animals": ["🐶", "🐱", "🐷", "🐻", "🐰", "🐸"],
+    "hiddenIndex": 1,
+    "answer": 5,
+    "rule": "none",
+    "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
+    "code": "C1",
+    "kind": "flash",
+    "label": "10격자 점 3개 (1.5초)",
+    "promptId": "flash.howMany",
+    "introPromptId": "flash.look",
+    "pattern": "tenFrame",
+    "count": 3,
+    "showMs": 1500,
+    "answer": 3,
+    "rule": "flash",
+    "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
+    "code": "C2",
+    "kind": "flash",
+    "label": "주사위 5 (1.5초)",
+    "promptId": "flash.howMany",
+    "introPromptId": "flash.look",
+    "pattern": "dice",
+    "count": 5,
+    "showMs": 1500,
+    "answer": 5,
+    "rule": "flash",
+    "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
+    "code": "C3",
+    "kind": "flash",
+    "label": "10격자 점 7개 = 5+2 (1.5초)",
+    "promptId": "flash.howMany",
+    "introPromptId": "flash.look",
+    "pattern": "tenFrame",
+    "count": 7,
+    "showMs": 1500,
+    "answer": 7,
+    "rule": "flash",
+    "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
+    "code": "D2",
+    "kind": "nextNumber",
+    "label": "7 다음에 오는 수",
+    "promptId": "next.afterSeven",
+    "from": 7,
+    "answer": 8,
+    "rule": "delay",
+    "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
+    "code": "E2",
+    "kind": "fillTen",
+    "label": "10격자에 6개, 몇 개 더 있으면 10",
+    "promptId": "fillTen.howManyMore",
+    "filled": 6,
+    "answer": 4,
+    "rule": "fillTen",
+    "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
+    "code": "F2",
+    "kind": "numeralChoice",
+    "label": "숫자 3과 7 중 더 큰 수",
+    "promptId": "compare.bigger",
+    "options": [3, 7],
+    "perRow": 2,
+    "answer": 7,
+    "rule": "delay"
+  },
+  {
+    "code": "F3",
+    "kind": "numeralChoice",
+    "label": "숫자 카드 1~10에서 7 찾기",
+    "promptId": "find.seven",
+    "options": [4, 9, 1, 7, 3, 10, 6, 2, 8, 5],
+    "perRow": 5,
+    "answer": 7,
+    "rule": "none"
   }
 ]

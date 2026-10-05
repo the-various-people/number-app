@@ -6,6 +6,7 @@ export function baseScore(strategy: StrategyCode, itemCode: ItemCode): Score {
   switch (strategy) {
     case 'SUBITIZE':
     case 'COUNT_ON':
+    case 'NONE':
       return 2;
     case 'COUNT_EACH':
       return areaOf(itemCode) === 'A' ? 2 : 1;

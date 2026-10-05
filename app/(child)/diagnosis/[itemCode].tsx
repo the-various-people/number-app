@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { stickerFor } from '../../../src/components/stickers';
+import { ChoiceItem } from '../../../src/items/components/ChoiceItem';
 import { CountingItem } from '../../../src/items/components/CountingItem';
 import { getItem, ITEM_CODES } from '../../../src/items/registry';
 import { diagnosisPath } from '../../../src/navigation';
@@ -32,6 +33,9 @@ export default function DiagnosisItemScreen() {
     advanceTimer.current = setTimeout(() => router.replace(diagnosisPath(next)), ADVANCE_DELAY_MS);
   };
 
+  // 다시 하기마다 key가 바뀌어 문항 화면의 상태가 처음으로 돌아간다.
+  const key = `${def.code}-${attempts[def.code] ?? 0}`;
+  const sticker = stickerFor(ITEM_CODES.indexOf(def.code));
   const finished = ITEM_CODES.filter((code) => statuses[code] !== 'pending').length;
 
   return (
@@ -39,12 +43,11 @@ export default function DiagnosisItemScreen() {
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${(finished / ITEM_CODES.length) * 100}%` }]} />
       </View>
-      <CountingItem
-        key={`${def.code}-${attempts[def.code] ?? 0}`}
-        def={def}
-        sticker={stickerFor(ITEM_CODES.indexOf(def.code))}
-        onAnswer={handleAnswer}
-      />
+      {def.kind === 'counting' ? (
+        <CountingItem key={key} def={def} sticker={sticker} onAnswer={handleAnswer} />
+      ) : (
+        <ChoiceItem key={key} def={def} sticker={sticker} onAnswer={handleAnswer} />
+      )}
     </SafeAreaView>
   );
 }

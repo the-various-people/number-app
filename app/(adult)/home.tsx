@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ITEMS } from '../../src/items/registry';
+import { expectedAnswer, ITEMS, touchTargets } from '../../src/items/registry';
 import type { ItemDef } from '../../src/items/types';
 import { diagnosisPath } from '../../src/navigation';
 import { areaOf, STRATEGY_LABELS, strategiesFor, type Area, type ItemStatus } from '../../src/scoring';
@@ -68,6 +68,7 @@ export default function AdultHomeScreen() {
 
 function ItemResult({ def, status, response }: { def: ItemDef; status: ItemStatus; response?: ItemResponse }) {
   const { setHelped, setStrategyOverride, resetItem } = useSession();
+  const targets = touchTargets(def);
 
   const retry = () => {
     resetItem(def.code);
@@ -89,10 +90,11 @@ function ItemResult({ def, status, response }: { def: ItemDef; status: ItemStatu
         <>
           <View style={styles.summary}>
             <Field label="답" value={String(response.answer)} />
+            <Field label="정답" value={String(expectedAnswer(def))} />
             <Field label="정오" value={response.correct ? '정답' : '오답'} />
             <Field label="점수" value={`${response.score}점`} />
             <Field label="응답 시간" value={seconds(response.responseMs)} hint="발문 끝 → 답" />
-            <Field label="터치 수" value={`${response.touches.length}회`} />
+            {targets && <Field label="터치 수" value={`${response.touches.length}회`} />}
           </View>
 
           <Text style={styles.sectionTitle}>
@@ -124,7 +126,7 @@ function ItemResult({ def, status, response }: { def: ItemDef; status: ItemStatu
             </Text>
           </Pressable>
 
-          <TouchLog response={response} count={def.count} objectLabel={def.objectLabel} />
+          {targets && <TouchLog response={response} count={targets.count} objectLabel={targets.label} />}
         </>
       )}
     </View>

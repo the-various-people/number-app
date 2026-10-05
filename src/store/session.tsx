@@ -21,8 +21,10 @@ interface SessionStore {
   childList: Child[];
   /** 다음 진단을 할 아이와 함께하는 어른 (어른 화면에서 고름) */
   preferences: Preferences;
-  /** 지금 보고 있는 회기 = 고른 아이의 가장 최근 회기 */
+  /** 지금 보고 있는 회기. 처음에는 고른 아이의 가장 최근 회기 */
   session: Session | null;
+  /** 고른 아이의 회기 목록, 최근 것부터 */
+  pastSessions: Session[];
   responses: Responses;
   statuses: Partial<Record<ItemCode, ItemStatus>>;
   /** 다음에 낼 문항. 모두 끝났으면 null */
@@ -34,6 +36,8 @@ interface SessionStore {
   /** 아이를 고른다 (null이면 아이 없이). 그 아이의 가장 최근 회기를 불러온다. */
   selectChild(childId: string | null): void;
   setAdultRole(role: Session['adultRole']): void;
+  /** 지난 회기를 열어 본다 (그 회기의 결과를 보고 고칠 수 있다) */
+  openSession(sessionId: string): void;
   /** 고른 아이와 어른 역할로 새 회기를 시작한다 */
   startSession(): void;
   /** 저장한 결과를 돌려준다 (다음 문항 계산용) */
@@ -82,6 +86,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [childList, setChildList] = useState<Child[]>([]);
   const [preferences, setPreferences] = useState<Preferences>(DEFAULT_PREFERENCES);
   const [session, setSession] = useState<Session | null>(null);
+  const [pastSessions, setPastSessions] = useState<Session[]>([]);
   const [responses, setResponses] = useState<Responses>({});
   const [attempts, setAttempts] = useState<SessionStore['attempts']>({});
   // 저장 함수가 최신 값을 바로 읽을 수 있게 같은 값을 ref에도 둔다.
@@ -111,9 +116,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const loadLatest = useCallback(
     async (childId: string | null) => {
       const ticket = ++loadTicket.current;
-      const latest = await repository.latestSession(childId);
+      const sessions = await repository.listSessions(childId);
+      const latest = sessions[0] ?? null;
       const saved = latest ? await repository.listResponses(latest.id) : [];
       if (ticket !== loadTicket.current) return; // 그사이 다른 아이를 골랐거나 새 회기를 시작했다
+      setPastSessions(sessions);
       commitSession(latest);
       commitResponses(Object.fromEntries(saved.map((r) => [r.itemCode, r])));
     },
@@ -152,6 +159,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       // 새 아이는 아직 기록이 없다
       loadTicket.current++;
       commitSession(null);
+      setPastSessions([]);
       commitResponses({});
       commitPreferences({ ...preferencesRef.current, currentChildId: child.id });
       return child;
@@ -172,10 +180,29 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [commitPreferences],
   );
 
+  const openSession = useCallback(
+    (sessionId: string) => {
+      const target = pastSessions.find((s) => s.id === sessionId);
+      if (!target) return;
+      const ticket = ++loadTicket.current;
+      repository
+        .listResponses(sessionId)
+        .then((saved) => {
+          if (ticket !== loadTicket.current) return;
+          commitSession(target);
+          commitResponses(Object.fromEntries(saved.map((r) => [r.itemCode, r])));
+          setAttempts({});
+        })
+        .catch((e) => console.warn('기록을 불러오지 못했어요', e));
+    },
+    [pastSessions, commitResponses, commitSession],
+  );
+
   const startSession = useCallback(() => {
     loadTicket.current++; // 불러오던 지난 기록이 새 회기를 덮지 않게
     const s = newSession(preferencesRef.current);
     commitSession(s);
+    setPastSessions((prev) => [s, ...prev]);
     commitResponses({});
     persist(repository.createSession(s));
   }, [commitResponses, commitSession]);
@@ -186,6 +213,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     loadTicket.current++;
     const s = newSession(preferencesRef.current);
     commitSession(s);
+    setPastSessions((prev) => [s, ...prev]);
     persist(repository.createSession(s));
     return s;
   }, [commitSession]);
@@ -252,6 +280,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       childList,
       preferences,
       session,
+      pastSessions,
       responses,
       statuses: itemStatuses(ITEM_CODES, scores),
       next: nextItem(ITEM_CODES, scores),
@@ -259,6 +288,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       addChild,
       selectChild,
       setAdultRole,
+      openSession,
       startSession,
       saveResponse,
       setHelped,
@@ -271,11 +301,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     childList,
     preferences,
     session,
+    pastSessions,
     responses,
     attempts,
     addChild,
     selectChild,
     setAdultRole,
+    openSession,
     startSession,
     saveResponse,
     setHelped,

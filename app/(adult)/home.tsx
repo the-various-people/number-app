@@ -5,22 +5,16 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { formatAge } from '../../src/children/age';
 import { ChildPanel, roleLabel } from '../../src/components/adult/ChildPanel';
+import { ReportCard } from '../../src/components/adult/ReportCard';
 import { expectedLabel, formatAnswer, ITEMS, touchTargets, type TouchTargets } from '../../src/items/registry';
 import type { ItemDef } from '../../src/items/types';
 import { diagnosisPath } from '../../src/navigation';
-import { areaOf, STRATEGY_LABELS, strategiesFor, type Area, type ItemStatus } from '../../src/scoring';
+import { AREA_LABELS } from '../../src/report/report';
+import { areaOf, STRATEGY_LABELS, strategiesFor, type ItemStatus } from '../../src/scoring';
 import { useSession, type ItemResponse } from '../../src/store/session';
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(2)}초`;
 
-const AREA_LABELS: Record<Area, string> = {
-  A: 'A. 수 세기',
-  B: 'B. 서수·기수',
-  C: 'C. 한눈에 알기',
-  D: 'D. 이어세기',
-  E: 'E. 모으기·가르기',
-  F: 'F. 크기 비교',
-};
 
 const STATUS_TEXT: Record<Exclude<ItemStatus, 'answered'>, string> = {
   pending: '아직 답하지 않았어요.',
@@ -61,6 +55,7 @@ export default function AdultHomeScreen() {
       </View>
       <ScrollView contentContainerStyle={styles.content}>
         <ChildPanel />
+        {session && <ReportCard results={responses} />}
         {areas.map((area) => (
           <View key={area} style={styles.area}>
             <Text style={styles.areaTitle}>{AREA_LABELS[area]}</Text>

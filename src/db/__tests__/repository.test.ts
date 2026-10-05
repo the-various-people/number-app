@@ -69,6 +69,7 @@ describe('createWebRepository', () => {
     expect((await repo.latestSession('b'))?.id).toBe('b');
     expect((await repo.latestSession(null))?.id).toBe('none');
     expect(await repo.latestSession('c')).toBeNull();
+    expect((await repo.listSessions('a')).map((s) => s.id)).toEqual(['a-new', 'a-old']);
   });
 
   it('아이를 저장하고, 같은 id면 고친다', async () => {

@@ -117,6 +117,14 @@ export const repository: Repository = {
     return row ? fromSessionRow(row) : null;
   },
 
+  async listSessions(childId) {
+    const rows = await (await db()).getAllAsync<SessionRow>(
+      'SELECT * FROM session WHERE child_id IS ? ORDER BY started_at DESC',
+      childId,
+    );
+    return rows.map(fromSessionRow);
+  },
+
   async listResponses(sessionId) {
     const database = await db();
     const rows = await database.getAllAsync<ItemResponseRow>(

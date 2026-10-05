@@ -56,6 +56,12 @@ export function createWebRepository(storage: KeyValueStorage): Repository {
       );
     },
 
+    async listSessions(childId) {
+      return read<Session[]>(SESSIONS_KEY, [])
+        .filter((s) => (s.childId ?? null) === childId)
+        .sort((a, b) => b.startedAt - a.startedAt);
+    },
+
     async listResponses(sessionId) {
       return responsesOf(sessionId);
     },

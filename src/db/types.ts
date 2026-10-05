@@ -63,6 +63,8 @@ export interface Repository {
   createSession(session: Session): Promise<void>;
   /** 그 아이의 가장 최근 회기. childId가 null이면 아이를 고르지 않고 한 회기 중에서 찾는다. */
   latestSession(childId: string | null): Promise<Session | null>;
+  /** 그 아이의 회기 목록, 최근 것부터 */
+  listSessions(childId: string | null): Promise<Session[]>;
   listResponses(sessionId: string): Promise<ItemResponse[]>;
   /** 같은 id가 있으면 덮어쓴다 (터치 기록 포함). */
   saveResponse(response: ItemResponse): Promise<void>;

@@ -15,7 +15,8 @@ const ROLE_LABELS: Record<NonNullable<Session['adultRole']>, string> = {
  * 아이를 고르면 아래 결과가 그 아이의 가장 최근 진단으로 바뀐다.
  */
 export function ChildPanel() {
-  const { loaded, childList, preferences, addChild, selectChild, setAdultRole } = useSession();
+  const { loaded, childList, preferences, session, pastSessions, addChild, selectChild, setAdultRole, openSession } =
+    useSession();
   const [adding, setAdding] = useState(false);
   // 등록된 아이가 하나도 없으면 처음부터 등록 칸을 펼쳐 둔다 (목록을 다 불러온 뒤에 판단).
   const noChildren = loaded && childList.length === 0;
@@ -63,6 +64,22 @@ export function ChildPanel() {
         <Chip label="아이 고르지 않음" selected={preferences.currentChildId === null} onPress={() => selectChild(null)} />
       </View>
 
+      {pastSessions.length > 1 && (
+        <View style={styles.roleRow}>
+          <Text style={styles.label}>지난 진단</Text>
+          <View style={styles.chips}>
+            {pastSessions.slice(0, MAX_PAST).map((s, i) => (
+              <Chip
+                key={s.id}
+                label={`${shortDate(s.startedAt)}${i === 0 ? ' (최근)' : ''}`}
+                selected={session?.id === s.id}
+                onPress={() => openSession(s.id)}
+              />
+            ))}
+          </View>
+        </View>
+      )}
+
       {adding && (
         <View style={styles.form}>
           <TextInput
@@ -108,6 +125,12 @@ export function ChildPanel() {
   );
 }
 
+/** 지난 진단은 최근 것부터 이만큼만 보여 준다 */
+const MAX_PAST = 8;
+
+const shortDate = (ms: number) =>
+  new Date(ms).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+
 export function roleLabel(role: Session['adultRole']): string | null {
   return role ? ROLE_LABELS[role] : null;
 }
@@ -128,7 +151,7 @@ const styles = StyleSheet.create({
   muted: { fontSize: 14, color: '#7B8794' },
   error: { fontSize: 15, color: '#D32F2F' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  roleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  roleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
   chip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999, borderWidth: 1, borderColor: '#CBD2D9' },
   chipSelected: { backgroundColor: '#1E88E5', borderColor: '#1E88E5' },
   chipText: { fontSize: 16, color: '#3E4C59' },

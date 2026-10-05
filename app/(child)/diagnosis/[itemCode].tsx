@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { stickerFor } from '../../../src/components/stickers';
 import { ChoiceItem } from '../../../src/items/components/ChoiceItem';
 import { CountingItem } from '../../../src/items/components/CountingItem';
+import { useIsPortrait } from '../../../src/items/components/layout';
 import { LineSelectItem } from '../../../src/items/components/LineSelectItem';
 import { getItem, ITEM_CODES } from '../../../src/items/registry';
 import { diagnosisPath } from '../../../src/navigation';
@@ -19,6 +20,7 @@ const ADVANCE_DELAY_MS = 1800;
 export default function DiagnosisItemScreen() {
   const { itemCode } = useLocalSearchParams<{ itemCode: string }>();
   const { responses, statuses, attempts, saveResponse } = useSession();
+  const portrait = useIsPortrait();
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const def = getItem(itemCode);
 
@@ -44,7 +46,8 @@ export default function DiagnosisItemScreen() {
       <View style={styles.progressTrack}>
         <View style={[styles.progressFill, { width: `${(finished / ITEM_CODES.length) * 100}%` }]} />
       </View>
-      {def.kind === 'counting' ? (
+      {/* 세로일 때는 문항을 띄우지 않는다. 발문과 시계는 가로로 돌린 뒤 처음부터 시작한다. */}
+      {portrait ? null : def.kind === 'counting' ? (
         <CountingItem key={key} def={def} sticker={sticker} onAnswer={handleAnswer} />
       ) : def.kind === 'lineSelect' ? (
         <LineSelectItem key={key} def={def} sticker={sticker} onAnswer={handleAnswer} />

@@ -11,6 +11,7 @@ import { CompareGroupsStage } from './CompareGroupsStage';
 import { CountOnStage } from './CountOnStage';
 import { Dice, TenFrame } from './DotPatterns';
 import { NumeralCards, NumeralFace } from './NumeralCards';
+import { stageHeightFor } from './layout';
 import { RewardSticker } from './RewardSticker';
 import { useItemPrompt, wait, type PromptIntro } from './useItemPrompt';
 
@@ -79,15 +80,14 @@ export function ChoiceItem({ def, sticker, onAnswer }: Props) {
     promptPlayer.play('praise.neutral');
   };
 
-  // 답 카드 줄을 뺀 무대 높이 (대략)
-  const stageHeight = height - 280;
+  const stageHeight = stageHeightFor(width, height, 'answerCards' in def);
 
   const renderStage = () => {
     switch (def.kind) {
       case 'hiddenOrder':
-        return <HiddenOrderStage def={def} width={width} />;
+        return <HiddenOrderStage def={def} width={width} stageHeight={stageHeight} />;
       case 'flash':
-        return <FlashStage def={def} size={Math.min(stageHeight * 0.8, width * 0.6)} visible={flashVisible} />;
+        return <FlashStage def={def} width={width} stageHeight={stageHeight} visible={flashVisible} />;
       case 'nextNumber':
         return <NextNumberStage from={def.from} cardWidth={Math.min(180, stageHeight * 0.6)} />;
       case 'fillTen':
@@ -115,7 +115,7 @@ export function ChoiceItem({ def, sticker, onAnswer }: Props) {
           <CompareGroupsStage
             def={def}
             panelWidth={Math.min(440, (width - 160 - 40) / 2)}
-            panelHeight={Math.min(440, height - 140)}
+            panelHeight={Math.min(440, stageHeight)}
             disabled={!promptDone}
             selected={answer}
             onSelect={handleAnswer}
@@ -126,7 +126,7 @@ export function ChoiceItem({ def, sticker, onAnswer }: Props) {
         const cardWidth = Math.min(
           def.perRow <= 2 ? 240 : 150,
           (width - 160 - (def.perRow <= 2 ? 120 : 20) * (def.perRow - 1)) / def.perRow,
-          (height - 140 - 20 * (rows - 1)) / rows / 1.25,
+          (stageHeight - 20 * (rows - 1)) / rows / 1.25,
         );
         return (
           <NumeralCards
@@ -156,9 +156,9 @@ export function ChoiceItem({ def, sticker, onAnswer }: Props) {
 }
 
 /** B3: 왼쪽 깃발이 줄의 앞. hiddenIndex 자리는 가리개로 덮여 있다. */
-function HiddenOrderStage({ def, width }: { def: HiddenOrderItemDef; width: number }) {
+function HiddenOrderStage({ def, width, stageHeight }: { def: HiddenOrderItemDef; width: number; stageHeight: number }) {
   const slots = def.animals.length + 1; // 깃발 자리 포함
-  const size = Math.min(130, (width - 120) / slots - 16);
+  const size = Math.min(130, (width - 120) / slots - 16, stageHeight * 0.8);
   return (
     <View style={styles.row}>
       <Text style={{ fontSize: size * 0.7 }}>🚩</Text>
@@ -187,11 +187,22 @@ function Cover({ size }: { size: number }) {
   );
 }
 
-function FlashStage({ def, size, visible }: { def: FlashItemDef; size: number; visible: boolean }) {
+function FlashStage({
+  def,
+  width,
+  stageHeight,
+  visible,
+}: {
+  def: FlashItemDef;
+  width: number;
+  stageHeight: number;
+  visible: boolean;
+}) {
   return def.pattern === 'dice' ? (
-    <Dice size={Math.min(size, 320)} count={def.count} showDots={visible} />
+    <Dice size={Math.min(320, stageHeight * 0.85, width * 0.6)} count={def.count} showDots={visible} />
   ) : (
-    <TenFrame cell={Math.min(size / 5, 120)} filled={def.count} showDots={visible} />
+    // 10격자는 가로로 길어(5칸 × 2줄) 높이보다 너비가 먼저 찬다.
+    <TenFrame cell={Math.min(120, (width * 0.6) / 5, stageHeight * 0.42)} filled={def.count} showDots={visible} />
   );
 }
 

@@ -6,6 +6,7 @@ import { evaluateSelection, type TouchEvent } from '../../scoring';
 import type { NewItemResponse } from '../../store/session';
 import type { LineSelectItemDef } from '../types';
 import { DoneButton } from './DoneButton';
+import { stageHeightFor } from './layout';
 import { RewardSticker } from './RewardSticker';
 import { useItemPrompt } from './useItemPrompt';
 
@@ -21,7 +22,7 @@ interface Props {
  * ✓는 발문이 끝나면 나타나고, 하나 이상 골라야 누를 수 있다.
  */
 export function LineSelectItem({ def, sticker, onAnswer }: Props) {
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const { elapsed, promptEndMs } = useItemPrompt(def.promptId);
   const [touches, setTouches] = useState<TouchEvent[]>([]);
   const [done, setDone] = useState(false);
@@ -59,7 +60,7 @@ export function LineSelectItem({ def, sticker, onAnswer }: Props) {
   };
 
   const slots = def.animals.length + 1; // 깃발 자리 포함
-  const size = Math.min(130, (width - 120) / slots - 12);
+  const size = Math.min(130, (width - 120) / slots - 12, stageHeightFor(width, height, false) * 0.5);
 
   return (
     <View style={styles.container}>

@@ -4,4 +4,5 @@ export * from './strategies';
 export * from './strategy';
 export * from './score';
 export * from './evaluate';
+export * from './choice';
 export * from './skip';

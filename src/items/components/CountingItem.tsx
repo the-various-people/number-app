@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Animated, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { useState } from 'react';
+import { StyleSheet, useWindowDimensions, View } from 'react-native';
 
 import { promptPlayer } from '../../audio/player';
 import { evaluateCounting, type TouchEvent } from '../../scoring';
@@ -7,6 +7,8 @@ import type { NewItemResponse } from '../../store/session';
 import type { CountingItemDef } from '../types';
 import { AnswerCards } from './AnswerCards';
 import { CountObject } from './CountObject';
+import { RewardSticker } from './RewardSticker';
+import { useItemPrompt } from './useItemPrompt';
 
 interface Props {
   def: CountingItemDef;
@@ -21,39 +23,21 @@ interface Props {
  */
 export function CountingItem({ def, sticker, onAnswer }: Props) {
   const { width, height } = useWindowDimensions();
-  const startRef = useRef(Date.now());
-  const promptEndRef = useRef<number | null>(null);
+  const { elapsed, promptEndMs } = useItemPrompt(def.promptId);
   const [touches, setTouches] = useState<TouchEvent[]>([]);
-  const [promptDone, setPromptDone] = useState(false);
   const [answer, setAnswer] = useState<number | null>(null);
-  const stickerAnim = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    let active = true;
-    startRef.current = Date.now();
-    promptPlayer.play(def.promptId).then(() => {
-      if (!active) return;
-      promptEndRef.current = Date.now() - startRef.current;
-      setPromptDone(true);
-    });
-    return () => {
-      active = false;
-      promptPlayer.stop();
-    };
-  }, [def.promptId]);
 
   const tapCounts = Array.from({ length: def.count }, (_, i) => touches.filter((t) => t.targetIndex === i).length);
 
   const handleTap = (targetIndex: number) => {
     if (answer !== null) return;
-    const tMs = Date.now() - startRef.current;
+    const tMs = elapsed();
     setTouches((prev) => [...prev, { targetIndex, tMs }]);
   };
 
   const handleAnswer = (value: number) => {
-    if (answer !== null || promptEndRef.current === null) return;
-    const answeredAtMs = Date.now() - startRef.current;
-    const promptEndMs = promptEndRef.current;
+    if (answer !== null || promptEndMs === null) return;
+    const answeredAtMs = elapsed();
     const result = evaluateCounting({ objectCount: def.count, answer: value, touches, promptEndMs, answeredAtMs });
     setAnswer(value);
     onAnswer({
@@ -66,7 +50,6 @@ export function CountingItem({ def, sticker, onAnswer }: Props) {
       touches,
     });
     promptPlayer.play('praise.neutral');
-    Animated.spring(stickerAnim, { toValue: 1, friction: 5, useNativeDriver: true }).start();
   };
 
   // 흩어 놓을 때 대상 크기. 무대는 화면 높이의 약 절반이다.
@@ -108,11 +91,9 @@ export function CountingItem({ def, sticker, onAnswer }: Props) {
             );
           })
         )}
-        <Animated.View style={[styles.sticker, { opacity: stickerAnim, transform: [{ scale: stickerAnim }] }]}>
-          <Text style={styles.stickerEmoji}>{sticker}</Text>
-        </Animated.View>
+        <RewardSticker emoji={sticker} visible={answer !== null} />
       </View>
-      <AnswerCards {...def.answerCards} disabled={!promptDone} selected={answer} onSelect={handleAnswer} />
+      <AnswerCards {...def.answerCards} disabled={promptEndMs === null} selected={answer} onSelect={handleAnswer} />
     </View>
   );
 }
@@ -135,14 +116,5 @@ const styles = StyleSheet.create({
   },
   placed: {
     position: 'absolute',
-  },
-  sticker: {
-    pointerEvents: 'none',
-    position: 'absolute',
-    top: 0,
-    right: 0,
-  },
-  stickerEmoji: {
-    fontSize: 96,
   },
 });

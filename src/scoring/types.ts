@@ -18,6 +18,7 @@ export type StrategyCode =
   | 'ONE_TO_ONE_ERROR' // 1:1 대응 오류
   | 'RECOUNT' // 다시 세기
   | 'DELAYED' // 지연 응답
+  | 'NONE' // 일반 응답: 전략을 나누지 않는 문항의 정답, 또는 D2·F2에서 늦지 않은 응답
   | 'UNCLASSIFIED'; // 판별 불가
 
 /** 터치 하나 (7절 touch_event). tMs는 문항 화면이 뜬 시점 기준. */

@@ -8,6 +8,7 @@ export const STRATEGY_LABELS: Record<StrategyCode, string> = {
   ONE_TO_ONE_ERROR: '1:1 대응 오류',
   RECOUNT: '다시 세기',
   DELAYED: '지연 응답',
+  NONE: '일반 응답',
   UNCLASSIFIED: '판별 불가',
 };
 
@@ -20,6 +21,8 @@ const STRATEGY_ITEMS: Record<Exclude<StrategyCode, 'UNCLASSIFIED'>, ItemCode[]> 
   ONE_TO_ONE_ERROR: ['A1', 'A2'],
   RECOUNT: ['A1', 'A2'],
   DELAYED: ['D2', 'F2'],
+  // 전략 규칙이 없는 문항(정답 2점)과, 늦지 않게 답한 D2·F2
+  NONE: ['B3', 'D2', 'F2', 'F3'],
 };
 
 export function strategiesFor(itemCode: ItemCode): StrategyCode[] {

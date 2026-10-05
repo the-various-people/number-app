@@ -1,9 +1,11 @@
 # main 브랜치에 올릴 때마다 테스트를 돌리고, 통과하면 웹 버전을 GitHub Pages에 배포한다.
+# PR에서는 검사와 빌드만 하고 배포하지 않는다.
 name: Deploy web
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -12,7 +14,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -51,6 +53,7 @@ jobs:
           path: dist
 
   deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:

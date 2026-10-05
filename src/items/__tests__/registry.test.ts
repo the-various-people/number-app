@@ -1,6 +1,6 @@
 import { PROMPTS } from '../../audio/prompts';
 import { strategiesFor } from '../../scoring';
-import { expectedAnswer, formatAnswer, ITEM_CODES, ITEMS, touchTargets } from '../registry';
+import { expectedAnswer, expectedLabel, formatAnswer, ITEM_CODES, ITEMS, touchTargets } from '../registry';
 
 describe('items.json', () => {
   it('문항 코드가 겹치지 않고 2절 표 순서(영역 → 번호)를 따른다', () => {
@@ -18,14 +18,18 @@ describe('items.json', () => {
   it('정답을 고를 수 있다', () => {
     for (const def of ITEMS) {
       const answer = expectedAnswer(def);
-      if (def.kind === 'numeralChoice') {
+      if (def.kind === 'dragSplit') {
+        expect(answer).toBeNull();
+      } else if (def.kind === 'dragBasket') {
+        expect(answer).toBeLessThanOrEqual(def.supply);
+      } else if (def.kind === 'numeralChoice') {
         expect(def.options).toContain(answer);
       } else if (def.kind === 'compareGroups') {
         expect(def.groups.map((g) => g.count)).toContain(answer);
         expect(Math.max(...def.groups.map((g) => g.count))).toBe(answer);
       } else if (def.kind === 'lineSelect') {
         for (const pos of def.answer) expect(pos).toBeLessThanOrEqual(def.animals.length);
-      } else if (typeof answer === 'number') {
+      } else if (typeof answer === 'number' && 'answerCards' in def) {
         expect(answer).toBeGreaterThanOrEqual(def.answerCards.min);
         expect(answer).toBeLessThanOrEqual(def.answerCards.max);
       }
@@ -65,6 +69,25 @@ describe('items.json', () => {
     expect(formatAnswer(f1, 4)).toBe('수박 4개');
     const d1 = touchTargets(ITEMS.find((d) => d.code === 'D1')!)!;
     expect([-1, 0, 5].map(d1.name)).toEqual(['상자 열기', '상자 안 쿠키 1', '더 온 쿠키 1']);
+  });
+
+  it('16문항이 모두 있다', () => {
+    expect(ITEM_CODES).toHaveLength(16);
+  });
+
+  it('끌어다 놓는 문항의 답 표시와 터치 기록', () => {
+    const a3 = ITEMS.find((d) => d.code === 'A3')!;
+    const e1 = ITEMS.find((d) => d.code === 'E1')!;
+    expect(formatAnswer(a3, 7)).toBe('7개');
+    expect(formatAnswer(e1, [14, 23])).toBe('1+4, 2+3');
+    expect(expectedLabel(e1)).toBe('서로 다른 방법 2가지 이상');
+    const names = touchTargets(e1)!.name;
+    expect([102, 200, 3, 901].map(names)).toEqual([
+      '구슬 3 → 왼쪽 접시',
+      '구슬 1 → 오른쪽 접시',
+      '구슬 4 → 쟁반',
+      '✓ (2번째)',
+    ]);
   });
 
   it('터치 기록은 누르는 대상이 있는 문항만', () => {

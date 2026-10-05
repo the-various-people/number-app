@@ -115,4 +115,25 @@ export interface LineSelectItemDef extends BaseItemDef {
   answer: number[];
 }
 
-export type ItemDef = CountingItemDef | ChoiceItemDef | LineSelectItemDef;
+/** A3: 쟁반의 구슬 supply개 중 answer개를 바구니로 끌어다 놓고 ✓로 답한다. */
+export interface BasketItemDef extends BaseItemDef {
+  kind: 'dragBasket';
+  supply: number;
+  answer: number;
+}
+
+/**
+ * E1: 구슬 total개를 두 접시에 나눠 담고 ✓. 최대 maxTries번 나눠 본다.
+ * ✓를 누를 때마다 구슬이 쟁반으로 돌아가고 retryPromptId("다른 방법도 있을까?")를 들려준다.
+ * 두 번째부터는 접시를 비운 채 ✓를 누르면 끝난다.
+ */
+export interface SplitItemDef extends BaseItemDef {
+  kind: 'dragSplit';
+  total: number;
+  maxTries: number;
+  retryPromptId: PromptId;
+}
+
+export type DragItemDef = BasketItemDef | SplitItemDef;
+
+export type ItemDef = CountingItemDef | ChoiceItemDef | LineSelectItemDef | DragItemDef;

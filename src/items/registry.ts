@@ -1,4 +1,5 @@
 import { BOX_TARGET } from '../scoring/choice';
+import { decodeMove, decodeSplit, ZONE_DONE } from '../scoring/drag';
 import type { ItemAnswer, ItemCode } from '../scoring/types';
 import items from './items.json';
 import type { ItemDef } from './types';
@@ -10,13 +11,25 @@ export function getItem(code: string): ItemDef | undefined {
   return ITEMS.find((item) => item.code === code);
 }
 
-/** 정답 */
-export function expectedAnswer(def: ItemDef): ItemAnswer {
-  return def.kind === 'counting' ? def.count : def.answer;
+/** 정답. E1처럼 정답이 하나로 정해지지 않는 문항은 null. */
+export function expectedAnswer(def: ItemDef): ItemAnswer | null {
+  if (def.kind === 'counting') return def.count;
+  if (def.kind === 'dragSplit') return null;
+  return def.answer;
+}
+
+/** 어른 화면의 "정답" 칸 */
+export function expectedLabel(def: ItemDef): string {
+  const answer = expectedAnswer(def);
+  return answer === null ? '서로 다른 방법 2가지 이상' : formatAnswer(def, answer);
 }
 
 /** 어른 화면에 보이는 답 */
 export function formatAnswer(def: ItemDef, answer: ItemAnswer): string {
+  if (def.kind === 'dragSplit' && Array.isArray(answer)) {
+    return answer.length ? answer.map((code) => decodeSplit(code).join('+')).join(', ') : '담지 않음';
+  }
+  if (def.kind === 'dragBasket') return `${answer}개`;
   if (Array.isArray(answer)) return answer.length ? `${answer.join(', ')}번째` : '고르지 않음';
   if (def.kind === 'compareGroups') {
     const group = def.groups.find((g) => g.count === answer);
@@ -34,6 +47,8 @@ export interface TouchTargets {
   name(targetIndex: number): string;
   /** 안 누른 대상을 알려 줄지. 모두 눌러야 하는 세기 문항만 그렇다. */
   showMissed: boolean;
+  /** 같은 대상을 다시 누른 줄을 강조할지 */
+  markRepeats: boolean;
 }
 
 const numbered = (i: number) => `${i + 1}번`;
@@ -42,11 +57,17 @@ const numbered = (i: number) => `${i + 1}번`;
 export function touchTargets(def: ItemDef): TouchTargets | null {
   switch (def.kind) {
     case 'counting':
-      return { count: def.count, label: def.objectLabel, name: numbered, showMissed: true };
+      return { count: def.count, label: def.objectLabel, name: numbered, showMissed: true, markRepeats: true };
     case 'fillTen':
-      return { count: 10 - def.filled, label: '빈칸', name: numbered, showMissed: true };
+      return { count: 10 - def.filled, label: '빈칸', name: numbered, showMissed: true, markRepeats: true };
     case 'lineSelect':
-      return { count: def.animals.length, label: '동물', name: (i) => `${i + 1}번째`, showMissed: false };
+      return {
+        count: def.animals.length,
+        label: '동물',
+        name: (i) => `${i + 1}번째`,
+        showMissed: false,
+        markRepeats: true,
+      };
     case 'countOn':
       return {
         count: def.boxCount + def.addedCount,
@@ -58,7 +79,23 @@ export function touchTargets(def: ItemDef): TouchTargets | null {
               ? `상자 안 쿠키 ${i + 1}`
               : `더 온 쿠키 ${i - def.boxCount + 1}`,
         showMissed: false,
+        markRepeats: true,
       };
+    case 'dragBasket':
+    case 'dragSplit': {
+      const zoneNames = def.kind === 'dragBasket' ? ['쟁반', '바구니'] : ['쟁반', '왼쪽 접시', '오른쪽 접시'];
+      return {
+        count: def.kind === 'dragBasket' ? def.supply : def.total,
+        label: '옮김',
+        name: (i) => {
+          const { zone, objectIndex } = decodeMove(i);
+          if (zone === ZONE_DONE) return `✓ (${objectIndex + 1}번째)`;
+          return `구슬 ${objectIndex + 1} → ${zoneNames[zone] ?? '?'}`;
+        },
+        showMissed: false,
+        markRepeats: false,
+      };
+    }
     default:
       return null;
   }

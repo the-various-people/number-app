@@ -5,9 +5,16 @@ import type { ItemCode } from '../scoring/types';
 export interface CountingItemDef {
   code: ItemCode;
   kind: 'counting';
-  object: 'apple';
+  /** 어른 화면에 보이는 문항 설명 */
+  label: string;
+  object: 'apple' | 'star';
+  /** 어른 화면의 터치 기록에 쓰는 대상 이름 */
+  objectLabel: string;
   count: number;
-  layout: 'row';
+  /** row: 가지런히 한 줄, scattered: positions에 흩어 놓음 */
+  layout: 'row' | 'scattered';
+  /** scattered일 때 대상 중심의 위치. 무대 너비·높이에 대한 비율(0~1) */
+  positions?: [number, number][];
   promptId: PromptId;
   answerCards: { min: number; max: number; showNumeral: boolean };
 }

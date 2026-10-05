@@ -1,9 +1,0 @@
-{
-  "code": "A1",
-  "kind": "counting",
-  "object": "apple",
-  "count": 5,
-  "layout": "row",
-  "promptId": "count.apples",
-  "answerCards": { "min": 1, "max": 10, "showNumeral": true }
-}

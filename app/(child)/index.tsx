@@ -2,16 +2,21 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
-import { promptPlayer } from '../src/audio/player';
+import { promptPlayer } from '../../src/audio/player';
+import { ITEM_CODES } from '../../src/items/registry';
+import { useSession } from '../../src/store/session';
 
 /**
- * 시작 화면. 어른이 아이와 함께 ▶를 눌러 진단을 시작한다.
+ * 시작 화면. 어른이 아이와 함께 ▶를 눌러 새 진단 회기를 시작한다.
  * 웹에서는 이 누르기가 있어야 음성 발문이 나온다.
  */
 export default function StartScreen() {
+  const { startSession } = useSession();
+
   const start = () => {
     promptPlayer.unlock();
-    router.replace('/diagnosis/A1');
+    startSession();
+    router.replace(`/diagnosis/${ITEM_CODES[0]}`);
   };
 
   return (

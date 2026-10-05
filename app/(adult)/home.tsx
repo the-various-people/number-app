@@ -4,54 +4,87 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ITEMS } from '../../src/items/registry';
 import type { ItemDef } from '../../src/items/types';
-import { STRATEGY_LABELS, strategiesFor } from '../../src/scoring';
+import { diagnosisPath } from '../../src/navigation';
+import { areaOf, STRATEGY_LABELS, strategiesFor, type Area, type ItemStatus } from '../../src/scoring';
 import { useSession, type ItemResponse } from '../../src/store/session';
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(2)}초`;
 
-/** 어른 화면: 문항별 결과, 도움 줌, 전략 수정 */
-export default function AdultHomeScreen() {
-  const { responses } = useSession();
+const AREA_LABELS: Record<Area, string> = {
+  A: 'A. 수 세기',
+  B: 'B. 서수·기수',
+  C: 'C. 한눈에 알기',
+  D: 'D. 이어세기',
+  E: 'E. 모으기·가르기',
+  F: 'F. 크기 비교',
+};
 
-  const backToChild = () => {
-    if (router.canGoBack()) router.back();
-    else router.replace('/diagnosis/A1');
-  };
+const STATUS_TEXT: Record<Exclude<ItemStatus, 'answered'>, string> = {
+  pending: '아직 답하지 않았어요.',
+  skipped: '건너뛰었어요. 이 영역에서 연속 2문항이 0점이었어요.',
+};
+
+/** 어른 화면: 영역별 문항 결과, 도움 줌, 전략 수정 */
+export default function AdultHomeScreen() {
+  const { session, responses, statuses, next } = useSession();
+  const areas = [...new Set(ITEMS.map((def) => areaOf(def.code)))];
+
+  // 아이 화면은 지금 낼 문항(또는 끝 화면)에서 이어 간다.
+  const backToChild = () => router.replace(diagnosisPath(next));
+  const newDiagnosis = () => router.replace('/');
 
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
-        <Text style={styles.title}>진단 결과</Text>
-        <Button label="아이 화면으로" onPress={backToChild} />
+        <View>
+          <Text style={styles.title}>진단 결과</Text>
+          {session && (
+            <Text style={styles.muted}>시작: {new Date(session.startedAt).toLocaleString('ko-KR')}</Text>
+          )}
+        </View>
+        <View style={styles.headerButtons}>
+          <Button label="새 진단" onPress={newDiagnosis} />
+          <Button label="아이 화면으로" onPress={backToChild} />
+        </View>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
-        {ITEMS.map((def) => (
-          <ItemResult key={def.code} def={def} response={responses[def.code]} onBack={backToChild} />
+        {areas.map((area) => (
+          <View key={area} style={styles.area}>
+            <Text style={styles.areaTitle}>{AREA_LABELS[area]}</Text>
+            {ITEMS.filter((def) => areaOf(def.code) === area).map((def) => (
+              <ItemResult
+                key={def.code}
+                def={def}
+                status={statuses[def.code] ?? 'pending'}
+                response={responses[def.code]}
+              />
+            ))}
+          </View>
         ))}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-function ItemResult({ def, response, onBack }: { def: ItemDef; response?: ItemResponse; onBack(): void }) {
+function ItemResult({ def, status, response }: { def: ItemDef; status: ItemStatus; response?: ItemResponse }) {
   const { setHelped, setStrategyOverride, resetItem } = useSession();
 
   const retry = () => {
     resetItem(def.code);
-    onBack();
+    router.replace(diagnosisPath(def.code));
   };
 
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.cardTitle}>
-          {def.code} · 사과 {def.count}개 세기
+          {def.code} · {def.label}
         </Text>
-        <Button label={`${def.code} 다시 하기`} onPress={retry} />
+        <Button label={response ? `${def.code} 다시 하기` : `${def.code} 하기`} onPress={retry} />
       </View>
 
-      {!response ? (
-        <Text style={styles.muted}>아직 답하지 않았어요.</Text>
+      {!response || status !== 'answered' ? (
+        <Text style={styles.muted}>{STATUS_TEXT[status === 'answered' ? 'pending' : status]}</Text>
       ) : (
         <>
           <View style={styles.summary}>
@@ -91,14 +124,14 @@ function ItemResult({ def, response, onBack }: { def: ItemDef; response?: ItemRe
             </Text>
           </Pressable>
 
-          <TouchLog response={response} count={def.count} />
+          <TouchLog response={response} count={def.count} objectLabel={def.objectLabel} />
         </>
       )}
     </View>
   );
 }
 
-function TouchLog({ response, count }: { response: ItemResponse; count: number }) {
+function TouchLog({ response, count, objectLabel }: { response: ItemResponse; count: number; objectLabel: string }) {
   const seen = new Set<number>();
   const missed = Array.from({ length: count }, (_, i) => i).filter(
     (i) => !response.touches.some((t) => t.targetIndex === i),
@@ -108,13 +141,13 @@ function TouchLog({ response, count }: { response: ItemResponse; count: number }
     <View>
       <Text style={styles.sectionTitle}>
         터치 기록 · 발문 끝 {seconds(response.promptEndMs)}
-        {missed.length > 0 && ` · 안 누른 사과: ${missed.map((i) => i + 1).join(', ')}번`}
+        {missed.length > 0 && ` · 안 누른 ${objectLabel}: ${missed.map((i) => i + 1).join(', ')}번`}
       </Text>
       {response.touches.length === 0 ? (
         <Text style={styles.muted}>터치 없음</Text>
       ) : (
         <View style={styles.table}>
-          <Row cells={['순서', '사과', '화면 뜬 뒤', '발문 끝 기준', '']} header />
+          <Row cells={['순서', objectLabel, '화면 뜬 뒤', '발문 끝 기준', '']} header />
           {response.touches.map((t, i) => {
             const repeated = seen.has(t.targetIndex);
             seen.add(t.targetIndex);
@@ -190,7 +223,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   title: { fontSize: 24, fontWeight: '700', color: '#1F2933' },
-  content: { padding: 32, gap: 24 },
+  headerButtons: { flexDirection: 'row', gap: 12 },
+  content: { padding: 32, gap: 32 },
+  area: { gap: 16 },
+  areaTitle: { fontSize: 18, fontWeight: '700', color: '#3E4C59' },
   card: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 24, gap: 16 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   cardTitle: { fontSize: 20, fontWeight: '700', color: '#1F2933' },

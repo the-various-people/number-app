@@ -1,0 +1,28 @@
+[
+  {
+    "code": "A1",
+    "kind": "counting",
+    "label": "가지런한 사과 5개 세기",
+    "object": "apple",
+    "objectLabel": "사과",
+    "count": 5,
+    "layout": "row",
+    "promptId": "count.apples",
+    "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
+    "code": "A2",
+    "kind": "counting",
+    "label": "흩어진 별 8개 세기",
+    "object": "star",
+    "objectLabel": "별",
+    "count": 8,
+    "layout": "scattered",
+    "positions": [
+      [0.12, 0.25], [0.35, 0.15], [0.62, 0.22], [0.86, 0.3],
+      [0.2, 0.72], [0.45, 0.55], [0.7, 0.75], [0.9, 0.7]
+    ],
+    "promptId": "count.stars",
+    "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  }
+]

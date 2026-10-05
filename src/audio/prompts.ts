@@ -5,7 +5,9 @@
  */
 export const PROMPTS = {
   'count.apples': { text: '사과를 하나씩 눌러서 세어 볼까? 모두 몇 개야?' },
+  'count.stars': { text: '별을 하나씩 눌러서 세어 볼까? 모두 몇 개야?' },
   'praise.neutral': { text: '잘했어!' },
+  'praise.done': { text: '다 했어! 정말 잘했어!' },
 } as const satisfies Record<string, { text: string }>;
 
 export type PromptId = keyof typeof PROMPTS;

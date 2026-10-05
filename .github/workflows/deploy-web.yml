@@ -1,0 +1,61 @@
+# main 브랜치에 올릴 때마다 테스트를 돌리고, 통과하면 웹 버전을 GitHub Pages에 배포한다.
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npx jest --ci
+
+      - name: Export web
+        run: npx expo export --platform web
+        env:
+          BASE_URL: /${{ github.event.repository.name }}
+
+      # 새로고침이나 주소 직접 입력 때도 앱이 열리도록 index.html을 404.html로 복사한다.
+      # Expo가 만드는 _expo 폴더를 그대로 내보내도록 Jekyll을 끈다.
+      - name: Prepare for GitHub Pages
+        run: |
+          cp dist/index.html dist/404.html
+          touch dist/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

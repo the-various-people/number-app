@@ -1,0 +1,11 @@
+/**
+ * 발문 목록. 지금은 text를 TTS로 읽는다.
+ * 녹음 파일이 생기면 각 항목에 file: require('../assets/audio/xxx.m4a')를 붙이고
+ * player.ts에서 녹음 파일 플레이어로 바꾼다.
+ */
+export const PROMPTS = {
+  'count.apples': { text: '사과를 하나씩 눌러서 세어 볼까? 모두 몇 개야?' },
+  'praise.neutral': { text: '잘했어!' },
+} as const satisfies Record<string, { text: string }>;
+
+export type PromptId = keyof typeof PROMPTS;

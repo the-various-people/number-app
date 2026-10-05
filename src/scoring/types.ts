@@ -28,3 +28,6 @@ export interface TouchEvent {
 }
 
 export type Score = 0 | 1 | 2;
+
+/** 아이의 답. 대부분 수 하나이고, 여러 개를 고르는 문항(B1, B2)은 고른 자리(앞에서 1번째부터) 목록이다. */
+export type ItemAnswer = number | number[];

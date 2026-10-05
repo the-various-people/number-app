@@ -1,4 +1,4 @@
-import { classifyChoice, evaluateChoice } from '../choice';
+import { classifyChoice, evaluateChoice, evaluateSelection } from '../choice';
 import { scoreResponse } from '../score';
 import type { TouchEvent } from '../types';
 
@@ -62,5 +62,46 @@ describe('evaluateChoice', () => {
     expect(
       evaluateChoice({ rule: 'delay', expected: 8, answer: 7, promptEndMs: 2000, answeredAtMs: 12000 }),
     ).toEqual({ correct: false, responseMs: 10000, autoStrategy: 'DELAYED' });
+  });
+});
+
+describe('상자 이어세기 (D1: 상자 안 5개 + 더 온 3개)', () => {
+  const base = { rule: 'countOn' as const, boxCount: 5, targetCount: 3, responseMs: 4000 };
+  const BOX = -1;
+
+  it('상자를 열지 않고 더 온 3개만 하나씩 누르면 이어세기 (2점)', () => {
+    expect(classifyChoice({ ...base, touches: taps(5, 6, 7) })).toBe('COUNT_ON');
+    expect(classifyChoice({ ...base, touches: taps(7, 5, 6) })).toBe('COUNT_ON');
+    expect(scoreResponse({ itemCode: 'D1', correct: true, strategy: 'COUNT_ON', helped: false })).toBe(2);
+  });
+
+  it('상자를 열고 8개를 전부 하나씩 누르면 모두 다시 세기 (1점)', () => {
+    expect(classifyChoice({ ...base, touches: taps(BOX, 0, 1, 2, 3, 4, 5, 6, 7) })).toBe('COUNT_ALL');
+    expect(scoreResponse({ itemCode: 'D1', correct: true, strategy: 'COUNT_ALL', helped: false })).toBe(1);
+  });
+
+  it('그 밖에는 판별 불가 (1점)', () => {
+    expect(classifyChoice({ ...base, touches: [] })).toBe('UNCLASSIFIED');
+    expect(classifyChoice({ ...base, touches: taps(5, 6) })).toBe('UNCLASSIFIED');
+    expect(classifyChoice({ ...base, touches: taps(5, 6, 6, 7) })).toBe('UNCLASSIFIED');
+    expect(classifyChoice({ ...base, touches: taps(BOX, 5, 6, 7) })).toBe('UNCLASSIFIED');
+    expect(classifyChoice({ ...base, touches: taps(BOX, 0, 1, 2, 3, 4, 5, 6) })).toBe('UNCLASSIFIED');
+  });
+});
+
+describe('evaluateSelection (B1, B2)', () => {
+  const at = { promptEndMs: 3000, answeredAtMs: 7000 };
+
+  it('B1: 다섯 번째 하나만 골라야 정답', () => {
+    expect(evaluateSelection({ ...at, expected: [5], selected: [5] })).toEqual({
+      answer: [5], correct: true, responseMs: 4000, autoStrategy: 'NONE',
+    });
+    expect(evaluateSelection({ ...at, expected: [5], selected: [1, 2, 3, 4, 5] }).correct).toBe(false);
+  });
+
+  it('B2: 앞에서 1~5번째를 정확히 골라야 정답 (고른 순서는 상관없음)', () => {
+    expect(evaluateSelection({ ...at, expected: [1, 2, 3, 4, 5], selected: [3, 1, 5, 2, 4] }).correct).toBe(true);
+    expect(evaluateSelection({ ...at, expected: [1, 2, 3, 4, 5], selected: [2, 3, 4, 5, 6] }).correct).toBe(false);
+    expect(evaluateSelection({ ...at, expected: [1, 2, 3, 4, 5], selected: [5] }).correct).toBe(false);
   });
 });

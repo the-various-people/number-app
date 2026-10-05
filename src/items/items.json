@@ -26,6 +26,22 @@
     "answerCards": { "min": 1, "max": 10, "showNumeral": true }
   },
   {
+    "code": "B1",
+    "kind": "lineSelect",
+    "label": "앞에서 다섯 번째 동물 (7마리 줄)",
+    "promptId": "order.fifthAnimal",
+    "animals": ["🐶", "🐱", "🐷", "🐻", "🐰", "🐸", "🐵"],
+    "answer": [5]
+  },
+  {
+    "code": "B2",
+    "kind": "lineSelect",
+    "label": "앞에서 동물 다섯 마리 (7마리 줄)",
+    "promptId": "order.fiveAnimals",
+    "animals": ["🐶", "🐱", "🐷", "🐻", "🐰", "🐸", "🐵"],
+    "answer": [1, 2, 3, 4, 5]
+  },
+  {
     "code": "B3",
     "kind": "hiddenOrder",
     "label": "가리개 밑까지 세어 토끼가 몇 번째인지",
@@ -76,6 +92,18 @@
     "answerCards": { "min": 1, "max": 10, "showNumeral": true }
   },
   {
+    "code": "D1",
+    "kind": "countOn",
+    "label": "상자 속 쿠키 5개 + 3개 이어세기",
+    "promptId": "countOn.cookies",
+    "object": "🍪",
+    "boxCount": 5,
+    "addedCount": 3,
+    "answer": 8,
+    "rule": "countOn",
+    "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
     "code": "D2",
     "kind": "nextNumber",
     "label": "7 다음에 오는 수",
@@ -94,6 +122,18 @@
     "answer": 4,
     "rule": "fillTen",
     "answerCards": { "min": 1, "max": 10, "showNumeral": true }
+  },
+  {
+    "code": "F1",
+    "kind": "compareGroups",
+    "label": "큰 수박 4개 vs 작은 딸기 6개",
+    "promptId": "compare.more",
+    "groups": [
+      { "emoji": "🍉", "label": "수박", "count": 4, "size": "big" },
+      { "emoji": "🍓", "label": "딸기", "count": 6, "size": "small" }
+    ],
+    "answer": 6,
+    "rule": "none"
   },
   {
     "code": "F2",

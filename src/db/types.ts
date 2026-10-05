@@ -1,4 +1,4 @@
-import type { ItemCode, Score, StrategyCode, TouchEvent } from '../scoring/types';
+import type { ItemAnswer, ItemCode, Score, StrategyCode, TouchEvent } from '../scoring/types';
 
 /** 7절 session. 아이 등록은 3단계에서 붙이므로 childId는 아직 비어 있을 수 있다. */
 export interface Session {
@@ -14,7 +14,7 @@ export interface ItemResponse {
   id: string;
   sessionId: string;
   itemCode: ItemCode;
-  answer: number;
+  answer: ItemAnswer;
   correct: boolean;
   /** 규칙으로 판별한 전략 */
   autoStrategyCode: StrategyCode;

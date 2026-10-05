@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { expectedAnswer, ITEMS, touchTargets } from '../../src/items/registry';
+import { expectedAnswer, formatAnswer, ITEMS, touchTargets, type TouchTargets } from '../../src/items/registry';
 import type { ItemDef } from '../../src/items/types';
 import { diagnosisPath } from '../../src/navigation';
 import { areaOf, STRATEGY_LABELS, strategiesFor, type Area, type ItemStatus } from '../../src/scoring';
@@ -89,8 +89,8 @@ function ItemResult({ def, status, response }: { def: ItemDef; status: ItemStatu
       ) : (
         <>
           <View style={styles.summary}>
-            <Field label="답" value={String(response.answer)} />
-            <Field label="정답" value={String(expectedAnswer(def))} />
+            <Field label="답" value={formatAnswer(def, response.answer)} />
+            <Field label="정답" value={formatAnswer(def, expectedAnswer(def))} />
             <Field label="정오" value={response.correct ? '정답' : '오답'} />
             <Field label="점수" value={`${response.score}점`} />
             <Field label="응답 시간" value={seconds(response.responseMs)} hint="발문 끝 → 답" />
@@ -126,16 +126,17 @@ function ItemResult({ def, status, response }: { def: ItemDef; status: ItemStatu
             </Text>
           </Pressable>
 
-          {targets && <TouchLog response={response} count={targets.count} objectLabel={targets.label} />}
+          {targets && <TouchLog response={response} targets={targets} />}
         </>
       )}
     </View>
   );
 }
 
-function TouchLog({ response, count, objectLabel }: { response: ItemResponse; count: number; objectLabel: string }) {
+function TouchLog({ response, targets }: { response: ItemResponse; targets: TouchTargets }) {
+  const { count, label: objectLabel, name, showMissed } = targets;
   const seen = new Set<number>();
-  const missed = Array.from({ length: count }, (_, i) => i).filter(
+  const missed = (showMissed ? Array.from({ length: count }, (_, i) => i) : []).filter(
     (i) => !response.touches.some((t) => t.targetIndex === i),
   );
 
@@ -159,7 +160,7 @@ function TouchLog({ response, count, objectLabel }: { response: ItemResponse; co
                 key={i}
                 cells={[
                   String(i + 1),
-                  `${t.targetIndex + 1}번`,
+                  name(t.targetIndex),
                   seconds(t.tMs),
                   `${sincePrompt >= 0 ? '+' : ''}${seconds(sincePrompt)}`,
                   repeated ? '다시 누름' : '',

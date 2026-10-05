@@ -16,13 +16,14 @@ export const STRATEGY_LABELS: Record<StrategyCode, string> = {
 const STRATEGY_ITEMS: Record<Exclude<StrategyCode, 'UNCLASSIFIED'>, ItemCode[]> = {
   SUBITIZE: ['C1', 'C2', 'C3', 'A1', 'E2'],
   COUNT_ON: ['D1'],
-  COUNT_EACH: ['A1', 'A2', 'D1', 'E2'],
+  // D1의 "하나씩 세기"는 모두 다시 세기와 같아서 따로 두지 않는다 (2단계 결정 6)
+  COUNT_EACH: ['A1', 'A2', 'E2'],
   COUNT_ALL: ['D1'],
   ONE_TO_ONE_ERROR: ['A1', 'A2'],
   RECOUNT: ['A1', 'A2'],
   DELAYED: ['D2', 'F2'],
   // 전략 규칙이 없는 문항(정답 2점)과, 늦지 않게 답한 D2·F2
-  NONE: ['B3', 'D2', 'F2', 'F3'],
+  NONE: ['B1', 'B2', 'B3', 'D2', 'F1', 'F2', 'F3'],
 };
 
 export function strategiesFor(itemCode: ItemCode): StrategyCode[] {

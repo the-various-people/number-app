@@ -7,6 +7,8 @@ import { evaluateChoice, type TouchEvent } from '../../scoring';
 import type { NewItemResponse } from '../../store/session';
 import type { ChoiceItemDef, FillTenItemDef, FlashItemDef, HiddenOrderItemDef } from '../types';
 import { AnswerCards } from './AnswerCards';
+import { CompareGroupsStage } from './CompareGroupsStage';
+import { CountOnStage } from './CountOnStage';
 import { Dice, TenFrame } from './DotPatterns';
 import { NumeralCards, NumeralFace } from './NumeralCards';
 import { RewardSticker } from './RewardSticker';
@@ -20,7 +22,9 @@ interface Props {
 
 /**
  * 답을 하나 골라 답하는 문항 (B3, C1~C3, D2, E2, F2, F3). 아이 화면이므로 글자가 없다.
- * 답 카드(F2·F3는 숫자 카드)는 발문이 끝난 뒤에 열린다. E2의 빈칸은 발문 중에도 누를 수 있다.
+ * (D1, F1도 여기서 한다.)
+ * 답 카드(F2·F3는 숫자 카드, F1은 두 판)는 발문이 끝난 뒤에 열린다.
+ * E2의 빈칸, D1의 상자와 쿠키는 발문 중에도 누를 수 있다.
  * 정오 피드백 없이 어떤 답이든 같은 칭찬과 스티커를 준다.
  */
 export function ChoiceItem({ def, sticker, onAnswer }: Props) {
@@ -58,7 +62,8 @@ export function ChoiceItem({ def, sticker, onAnswer }: Props) {
       answer: value,
       promptEndMs,
       answeredAtMs: elapsed(),
-      targetCount: def.kind === 'fillTen' ? 10 - def.filled : 0,
+      targetCount: def.kind === 'fillTen' ? 10 - def.filled : def.kind === 'countOn' ? def.addedCount : 0,
+      boxCount: def.kind === 'countOn' ? def.boxCount : 0,
       touches,
     });
     setAnswer(value);
@@ -95,6 +100,27 @@ export function ChoiceItem({ def, sticker, onAnswer }: Props) {
             onTap={handleTap}
           />
         );
+      case 'countOn':
+        return (
+          <CountOnStage
+            def={def}
+            boxSize={Math.min(340, stageHeight * 0.85, width * 0.32)}
+            touches={touches}
+            disabled={answer !== null}
+            onTap={handleTap}
+          />
+        );
+      case 'compareGroups':
+        return (
+          <CompareGroupsStage
+            def={def}
+            panelWidth={Math.min(440, (width - 160 - 40) / 2)}
+            panelHeight={Math.min(440, height - 140)}
+            disabled={!promptDone}
+            selected={answer}
+            onSelect={handleAnswer}
+          />
+        );
       case 'numeralChoice': {
         const rows = Math.ceil(def.options.length / def.perRow);
         const cardWidth = Math.min(
@@ -122,7 +148,7 @@ export function ChoiceItem({ def, sticker, onAnswer }: Props) {
         {renderStage()}
         <RewardSticker emoji={sticker} visible={answer !== null} />
       </View>
-      {def.kind !== 'numeralChoice' && (
+      {'answerCards' in def && (
         <AnswerCards {...def.answerCards} disabled={!promptDone} selected={answer} onSelect={handleAnswer} />
       )}
     </View>

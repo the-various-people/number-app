@@ -1,4 +1,4 @@
-import type { ItemResponse, Repository, Session } from './types';
+import { DEFAULT_PREFERENCES, type Child, type ItemResponse, type Preferences, type Repository, type Session } from './types';
 
 /** localStorage와 같은 모양. 테스트에서는 가짜를 넣는다. */
 export interface KeyValueStorage {
@@ -8,6 +8,8 @@ export interface KeyValueStorage {
 }
 
 const SESSIONS_KEY = 'number-app:sessions';
+const CHILDREN_KEY = 'number-app:children';
+const PREFERENCES_KEY = 'number-app:preferences';
 const responsesKey = (sessionId: string) => `number-app:responses:${sessionId}`;
 
 /** 웹용 저장소. 기록은 그 기기의 브라우저 안에만 남는다. */
@@ -25,16 +27,39 @@ export function createWebRepository(storage: KeyValueStorage): Repository {
   const responsesOf = (sessionId: string) => read<ItemResponse[]>(responsesKey(sessionId), []);
 
   return {
+    async listChildren() {
+      return read<Child[]>(CHILDREN_KEY, []);
+    },
+
+    async saveChild(child) {
+      const others = read<Child[]>(CHILDREN_KEY, []).filter((c) => c.id !== child.id);
+      write(CHILDREN_KEY, [...others, child]);
+    },
+
+    async loadPreferences() {
+      return { ...DEFAULT_PREFERENCES, ...read<Partial<Preferences>>(PREFERENCES_KEY, {}) };
+    },
+
+    async savePreferences(preferences) {
+      write(PREFERENCES_KEY, preferences);
+    },
+
     async createSession(session) {
       write(SESSIONS_KEY, [...read<Session[]>(SESSIONS_KEY, []), session]);
     },
 
-    async latestSession() {
-      const sessions = read<Session[]>(SESSIONS_KEY, []);
+    async latestSession(childId) {
+      const sessions = read<Session[]>(SESSIONS_KEY, []).filter((s) => (s.childId ?? null) === childId);
       return sessions.reduce<Session | null>(
         (latest, s) => (latest === null || s.startedAt > latest.startedAt ? s : latest),
         null,
       );
+    },
+
+    async listSessions(childId) {
+      return read<Session[]>(SESSIONS_KEY, [])
+        .filter((s) => (s.childId ?? null) === childId)
+        .sort((a, b) => b.startedAt - a.startedAt);
     },
 
     async listResponses(sessionId) {

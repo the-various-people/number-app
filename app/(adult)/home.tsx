@@ -1,53 +1,61 @@
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { formatAge } from '../../src/children/age';
+import { ChildPanel, roleLabel } from '../../src/components/adult/ChildPanel';
+import { ReportCard } from '../../src/components/adult/ReportCard';
 import { expectedLabel, formatAnswer, ITEMS, touchTargets, type TouchTargets } from '../../src/items/registry';
 import type { ItemDef } from '../../src/items/types';
 import { diagnosisPath } from '../../src/navigation';
-import { areaOf, STRATEGY_LABELS, strategiesFor, type Area, type ItemStatus } from '../../src/scoring';
+import { AREA_LABELS } from '../../src/report/report';
+import { areaOf, STRATEGY_LABELS, strategiesFor, type ItemStatus } from '../../src/scoring';
 import { useSession, type ItemResponse } from '../../src/store/session';
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(2)}초`;
 
-const AREA_LABELS: Record<Area, string> = {
-  A: 'A. 수 세기',
-  B: 'B. 서수·기수',
-  C: 'C. 한눈에 알기',
-  D: 'D. 이어세기',
-  E: 'E. 모으기·가르기',
-  F: 'F. 크기 비교',
-};
 
 const STATUS_TEXT: Record<Exclude<ItemStatus, 'answered'>, string> = {
   pending: '아직 답하지 않았어요.',
   skipped: '건너뛰었어요. 이 영역에서 연속 2문항이 0점이었어요.',
 };
 
-/** 어른 화면: 영역별 문항 결과, 도움 줌, 전략 수정 */
+/** 어른 화면: 아이 고르기·등록, 영역별 문항 결과, 도움 줌, 전략 수정, 메모 */
 export default function AdultHomeScreen() {
-  const { session, responses, statuses, next } = useSession();
+  const { session, childList, responses, statuses, next } = useSession();
   const areas = [...new Set(ITEMS.map((def) => areaOf(def.code)))];
 
   // 아이 화면은 지금 낼 문항(또는 끝 화면)에서 이어 간다.
   const backToChild = () => router.replace(diagnosisPath(next));
-  const newDiagnosis = () => router.replace('/');
+
+  // 결과 머리말: 누구의, 언제, 몇 살 때, 누구와 한 진단인지
+  const child = childList.find((c) => c.id === session?.childId);
+  const startedAt = session ? new Date(session.startedAt) : null;
+  const sessionInfo = session && startedAt
+    ? [
+        child ? `${child.nickname} (${formatAge(child.birthMonth, startedAt)})` : '아이 고르지 않음',
+        roleLabel(session.adultRole),
+        startedAt.toLocaleString('ko-KR'),
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : '아직 진단 기록이 없어요. 아래 "▶ 새 진단 시작"을 눌러 시작하세요.';
 
   return (
     <SafeAreaView style={styles.screen}>
       <View style={styles.header}>
-        <View>
+        <View style={{ flexShrink: 1 }}>
           <Text style={styles.title}>진단 결과</Text>
-          {session && (
-            <Text style={styles.muted}>시작: {new Date(session.startedAt).toLocaleString('ko-KR')}</Text>
-          )}
+          <Text style={styles.muted}>{sessionInfo}</Text>
         </View>
         <View style={styles.headerButtons}>
-          <Button label="새 진단" onPress={newDiagnosis} />
-          <Button label="아이 화면으로" onPress={backToChild} />
+          {session && <Button label="이어서 하기 (아이 화면)" onPress={backToChild} />}
         </View>
       </View>
       <ScrollView contentContainerStyle={styles.content}>
+        <ChildPanel />
+        {session && <ReportCard results={responses} />}
         {areas.map((area) => (
           <View key={area} style={styles.area}>
             <Text style={styles.areaTitle}>{AREA_LABELS[area]}</Text>
@@ -67,7 +75,7 @@ export default function AdultHomeScreen() {
 }
 
 function ItemResult({ def, status, response }: { def: ItemDef; status: ItemStatus; response?: ItemResponse }) {
-  const { setHelped, setStrategyOverride, resetItem } = useSession();
+  const { setHelped, setStrategyOverride, setNote, resetItem } = useSession();
   const targets = touchTargets(def);
 
   const retry = () => {
@@ -126,9 +134,37 @@ function ItemResult({ def, status, response }: { def: ItemDef; status: ItemStatu
             </Text>
           </Pressable>
 
+          <NoteBox key={response.id} note={response.note} onSave={(note) => setNote(def.code, note)} />
+
           {targets && <TouchLog response={response} targets={targets} />}
         </>
       )}
+    </View>
+  );
+}
+
+/** 문항별 관찰 메모. 글을 멈추고 0.6초 뒤, 또는 칸을 벗어날 때 저장한다. */
+function NoteBox({ note, onSave }: { note: string; onSave(note: string): void }) {
+  const [text, setText] = useState(note);
+
+  useEffect(() => {
+    if (text === note) return;
+    const timer = setTimeout(() => onSave(text), 600);
+    return () => clearTimeout(timer);
+  }, [text, note, onSave]);
+
+  return (
+    <View>
+      <Text style={styles.sectionTitle}>관찰 메모</Text>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        onBlur={() => text !== note && onSave(text)}
+        placeholder="예: 손가락으로 짚으며 소리 내어 셈"
+        multiline
+        style={styles.noteInput}
+        maxLength={500}
+      />
     </View>
   );
 }
@@ -251,6 +287,16 @@ const styles = StyleSheet.create({
   chipSelected: { backgroundColor: '#1E88E5', borderColor: '#1E88E5' },
   chipText: { fontSize: 16, color: '#3E4C59' },
   chipTextSelected: { color: '#FFFFFF', fontWeight: '600' },
+  noteInput: {
+    minHeight: 64,
+    borderWidth: 1,
+    borderColor: '#CBD2D9',
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 16,
+    color: '#1F2933',
+    textAlignVertical: 'top',
+  },
   helpButton: {
     alignSelf: 'flex-start',
     paddingHorizontal: 24,

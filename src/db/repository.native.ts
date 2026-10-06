@@ -2,7 +2,7 @@ import * as SQLite from 'expo-sqlite';
 
 import { fromRows, fromSessionRow, toResponseRow, toSessionRow, toTouchRows } from './rows';
 import type { ItemResponseRow, SessionRow, TouchEventRow } from './rows';
-import type { Repository } from './types';
+import { DEFAULT_PREFERENCES, type Child, type Preferences, type Repository } from './types';
 
 /** 7절 데이터 모델. activity_run은 놀이를 만드는 4단계에서 추가한다. */
 const SCHEMA = `
@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS touch_event (
   target_index INTEGER NOT NULL,
   t_ms INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS preference (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_session_child ON session (child_id, started_at);
 CREATE INDEX IF NOT EXISTS idx_response_session ON item_response (session_id);
 CREATE INDEX IF NOT EXISTS idx_touch_response ON touch_event (response_id);
 `;
@@ -57,7 +62,45 @@ function db(): Promise<SQLite.SQLiteDatabase> {
 }
 
 /** 태블릿 앱용 저장소 (expo-sqlite) */
+interface ChildRow {
+  id: string;
+  nickname: string;
+  birth_month: string;
+  created_at: number;
+}
+
 export const repository: Repository = {
+  async listChildren() {
+    const rows = await (await db()).getAllAsync<ChildRow>('SELECT * FROM child ORDER BY created_at');
+    return rows.map((r): Child => ({ id: r.id, nickname: r.nickname, birthMonth: r.birth_month, createdAt: r.created_at }));
+  },
+
+  async saveChild(child) {
+    await (await db()).runAsync(
+      'INSERT OR REPLACE INTO child (id, nickname, birth_month, created_at) VALUES (?, ?, ?, ?)',
+      child.id, child.nickname, child.birthMonth, child.createdAt,
+    );
+  },
+
+  async loadPreferences() {
+    const row = await (await db()).getFirstAsync<{ value: string }>(
+      "SELECT value FROM preference WHERE key = 'preferences'",
+    );
+    if (!row) return DEFAULT_PREFERENCES;
+    try {
+      return { ...DEFAULT_PREFERENCES, ...(JSON.parse(row.value) as Partial<Preferences>) };
+    } catch {
+      return DEFAULT_PREFERENCES;
+    }
+  },
+
+  async savePreferences(preferences) {
+    await (await db()).runAsync(
+      "INSERT OR REPLACE INTO preference (key, value) VALUES ('preferences', ?)",
+      JSON.stringify(preferences),
+    );
+  },
+
   async createSession(session) {
     const r = toSessionRow(session);
     await (await db()).runAsync(
@@ -66,11 +109,20 @@ export const repository: Repository = {
     );
   },
 
-  async latestSession() {
+  async latestSession(childId) {
     const row = await (await db()).getFirstAsync<SessionRow>(
-      'SELECT * FROM session ORDER BY started_at DESC LIMIT 1',
+      'SELECT * FROM session WHERE child_id IS ? ORDER BY started_at DESC LIMIT 1',
+      childId,
     );
     return row ? fromSessionRow(row) : null;
+  },
+
+  async listSessions(childId) {
+    const rows = await (await db()).getAllAsync<SessionRow>(
+      'SELECT * FROM session WHERE child_id IS ? ORDER BY started_at DESC',
+      childId,
+    );
+    return rows.map(fromSessionRow);
   },
 
   async listResponses(sessionId) {

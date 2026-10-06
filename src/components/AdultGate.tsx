@@ -1,80 +1,76 @@
-import { useRef } from 'react';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import { useEffect, useRef } from 'react';
+import { Animated, View } from 'react-native';
 
-const HOLD_MS = 3000;
-const SIZE = 88;
-const ICON = 22;
+import { GateFace, gateStyles, HOLD_MS } from './gate';
+import { guardLongPress } from './touchGuard';
 
 interface Props {
   onOpen(): void;
 }
 
 /**
- * 아이 화면 오른쪽 위 모서리. 3초 동안 길게 누르면 어른 화면으로 넘어간다.
- * 어른이 자리를 찾을 수 있게 아주 옅은 자물쇠를 둔다(아이 눈에는 잘 띄지 않게).
- * 누르고 있는 동안 옅은 원이 차올라 어른이 진행 상황을 알 수 있다.
+ * 웹(태블릿 브라우저)용: 아이 화면 오른쪽 위 모서리를 3초 동안 누르면 어른 화면으로 넘어간다.
+ *
+ * Pressable 길게 누르기를 쓰지 않는다. 태블릿 브라우저는 길게 누르면 글자 범위 선택·메뉴를 시작하면서
+ * 누르기 취소(touchcancel/pointercancel)를 보내, 3초가 되기 전에 끊긴다(2026-10-06 사용자 신고).
+ * 그래서 이 칸에서는 브라우저의 길게 누르기 동작을 막고(touchstart preventDefault, contextmenu 막기,
+ * 선택·말풍선 끄기), 손가락이 닿고 떨어지는 것을 직접 받아 시간을 잰다. 앱은 AdultGate.native.tsx.
  */
 export function AdultGate({ onOpen }: Props) {
+  const ref = useRef<View>(null);
   const progress = useRef(new Animated.Value(0)).current;
+  const onOpenRef = useRef(onOpen);
+  onOpenRef.current = onOpen;
 
-  const start = () => {
-    progress.setValue(0);
-    Animated.timing(progress, { toValue: 1, duration: HOLD_MS, useNativeDriver: true }).start();
-  };
-  const cancel = () => {
-    progress.stopAnimation();
-    progress.setValue(0);
-  };
+  useEffect(() => {
+    const el = ref.current as unknown as HTMLElement | null;
+    if (!el) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const cancel = () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      progress.stopAnimation();
+      progress.setValue(0);
+    };
+    const start = (e: Event) => {
+      // 브라우저가 이 누르기를 범위 선택·메뉴·흉내 마우스 이벤트로 가져가지 않게 한다
+      e.preventDefault();
+      if (timer) return;
+      progress.setValue(0);
+      Animated.timing(progress, { toValue: 1, duration: HOLD_MS, useNativeDriver: false }).start();
+      timer = setTimeout(() => {
+        timer = null;
+        progress.setValue(0);
+        onOpenRef.current();
+      }, HOLD_MS);
+    };
+    const block = (e: Event) => e.preventDefault();
+
+    const unguard = guardLongPress(el);
+    el.addEventListener('touchstart', start, { passive: false });
+    el.addEventListener('touchend', cancel);
+    el.addEventListener('touchcancel', cancel);
+    el.addEventListener('mousedown', start);
+    el.addEventListener('mouseup', cancel);
+    el.addEventListener('mouseleave', cancel);
+    el.addEventListener('contextmenu', block);
+    return () => {
+      cancel();
+      unguard();
+      el.removeEventListener('touchstart', start);
+      el.removeEventListener('touchend', cancel);
+      el.removeEventListener('touchcancel', cancel);
+      el.removeEventListener('mousedown', start);
+      el.removeEventListener('mouseup', cancel);
+      el.removeEventListener('mouseleave', cancel);
+      el.removeEventListener('contextmenu', block);
+    };
+  }, [progress]);
 
   return (
-    <Pressable
-      style={styles.corner}
-      delayLongPress={HOLD_MS}
-      onPressIn={start}
-      onPressOut={cancel}
-      onLongPress={onOpen}
-      accessibilityLabel="어른 화면 (3초 동안 누르기)"
-    >
-      <Animated.View
-        style={[
-          styles.fill,
-          {
-            opacity: progress.interpolate({ inputRange: [0, 0.1, 1], outputRange: [0, 0.25, 0.5] }),
-            transform: [{ scale: progress }],
-          },
-        ]}
-      />
-      {/* SVG가 누르기를 가로채지 않게 막는다 (CLAUDE.md 구현 메모) */}
-      <View style={styles.icon}>
-        <Svg width={ICON} height={ICON} viewBox="0 0 24 24">
-          <Path d="M7 11V8a5 5 0 0 1 10 0v3" stroke="#90A4AE" strokeWidth={2} fill="none" strokeLinecap="round" />
-          <Rect x={5} y={11} width={14} height={10} rx={2} fill="#90A4AE" />
-        </Svg>
-      </View>
-    </Pressable>
+    <View ref={ref} style={gateStyles.corner} accessibilityLabel="어른 화면 (3초 동안 누르기)">
+      <GateFace progress={progress} />
+    </View>
   );
 }
-
-const styles = StyleSheet.create({
-  corner: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: SIZE,
-    height: SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fill: {
-    position: 'absolute',
-    width: SIZE * 0.7,
-    height: SIZE * 0.7,
-    borderRadius: SIZE,
-    backgroundColor: '#90A4AE',
-  },
-  icon: {
-    pointerEvents: 'none',
-    opacity: 0.35,
-  },
-});

@@ -24,9 +24,8 @@
 
 ### 열린 PR / 머지 안 된 브랜치
 
-- PR #8 `child-session-manage`: 할 일 1~3 (아이 고치기·지우기, 진단 지우기, 시작 확인)
-- PR #9 `export-and-fixes` (#8 위에 쌓음, 머지하면 #8도 들어감): 할 일 4·6·7·12 (CSV 내보내기, D1 0점 추천, E1 다시 안내·덜 담음, 어른 화면 자물쇠)
-- 둘 다 사용자 확인을 기다린다.
+- PR #10 `fix-adult-gate-touch`: 태블릿 브라우저에서 모서리 3초 누르기가 범위 선택에 끊기던 문제. 사용자 확인을 기다린다.
+- (#8, #9는 2026-10-06 머지됨)
 
 ## 진행 상황 (DESIGN.md 8절)
 
@@ -179,6 +178,9 @@
 - 그림은 임시로 이모지와 간단한 SVG를 쓴다. 스티커는 문항 대상 그림과 겹치지 않게 고른다(`src/components/stickers.ts`).
 
 ## 구현 메모 (웹에서 겪은 문제)
+
+- **길게 누르기**: 태블릿 브라우저는 길게 누르면 범위 선택·말풍선을 시작하며 touchcancel/pointercancel을 보내 `Pressable onLongPress`가 끊긴다(사용자 신고 2026-10-06, 컴퓨터 마우스로는 재현 안 됨). 웹의 어른 모서리(`AdultGate.tsx`)는 touchstart를 preventDefault하고 손가락 닿음/뗌을 직접 받아 시간을 잰다. 앱은 `AdultGate.native.tsx`(Pressable). 아이 화면 전체는 `guardLongPress`(`touchGuard.ts`)로 user-select·-webkit-touch-callout을 끄고 contextmenu·selectstart를 막는다. 입력 칸이 있는 어른 화면에는 쓰지 않는다.
+- **오래 켜 둔 개발 서버**는 새로 만든 파일(같은 이름을 .native로 옮기고 새로 만든 경우 등)을 못 알아볼 수 있다. 확인할 때는 `npx expo start --web --port 8082 --clear`로 새로 켠다. 이때 Expo가 tsconfig.json을 고쳐 쓰니 커밋 전에 되돌린다.
 
 - **터치 기록**에 `Pressable onPressIn`을 쓰지 않는다. react-native-web은 onPressIn을 50ms 늦게 부르고 그 전에 손을 떼면 건너뛴다. 대상 터치는 `onStartShouldSetResponder` + `onResponderGrant`로 받는다(`CountObject.tsx`).
 - 터치를 받는 요소 안의 **SVG**에는 `pointerEvents: 'none'`을 준다. 웹에서 SVG가 터치를 가로챈다.

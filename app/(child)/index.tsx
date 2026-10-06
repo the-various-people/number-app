@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { promptPlayer } from '../../src/audio/player';
+import { formatAge } from '../../src/children/age';
 import { ITEM_CODES } from '../../src/items/registry';
 import { useSession } from '../../src/store/session';
 
@@ -11,7 +12,10 @@ import { useSession } from '../../src/store/session';
  * 웹에서는 이 누르기가 있어야 음성 발문이 나온다.
  */
 export default function StartScreen() {
-  const { startSession } = useSession();
+  const { startSession, childList, preferences } = useSession();
+  const child = childList.find((c) => c.id === preferences.currentChildId);
+  // 아이가 아니라 옆의 어른이 누구로 시작하는지 확인하는 한 줄
+  const who = child ? `${child.nickname} · ${formatAge(child.birthMonth, new Date())}` : '아이를 고르지 않음';
 
   const start = () => {
     promptPlayer.unlock();
@@ -26,6 +30,7 @@ export default function StartScreen() {
           <Path d="M32 20 L82 50 L32 80 Z" fill="#FFFFFF" />
         </Svg>
       </Pressable>
+      <Text style={styles.adultHint}>{who}</Text>
     </View>
   );
 }
@@ -47,5 +52,11 @@ const styles = StyleSheet.create({
   },
   pressed: {
     transform: [{ scale: 0.95 }],
+  },
+  adultHint: {
+    position: 'absolute',
+    bottom: 12,
+    fontSize: 16,
+    color: '#90A4AE',
   },
 });

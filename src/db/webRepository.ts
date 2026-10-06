@@ -25,15 +25,36 @@ export function createWebRepository(storage: KeyValueStorage): Repository {
   const write = (key: string, value: unknown) => storage.setItem(key, JSON.stringify(value));
 
   const responsesOf = (sessionId: string) => read<ItemResponse[]>(responsesKey(sessionId), []);
+  const visible = <T extends { deletedAt?: number | null }>(rows: T[]) => rows.filter((r) => !r.deletedAt);
+  /** 그 아이(null이면 아이 없음)의 지우지 않은 회기 */
+  const sessionsOf = (childId: string | null) =>
+    visible(read<Session[]>(SESSIONS_KEY, [])).filter((s) => (s.childId ?? null) === childId);
 
   return {
     async listChildren() {
-      return read<Child[]>(CHILDREN_KEY, []);
+      return visible(read<Child[]>(CHILDREN_KEY, [])).sort((a, b) => a.createdAt - b.createdAt);
     },
 
     async saveChild(child) {
-      const others = read<Child[]>(CHILDREN_KEY, []).filter((c) => c.id !== child.id);
-      write(CHILDREN_KEY, [...others, child]);
+      // 고칠 때도 등록한 순서가 바뀌지 않게 제자리에 바꿔 넣는다
+      const all = read<Child[]>(CHILDREN_KEY, []);
+      const at = all.findIndex((c) => c.id === child.id);
+      write(CHILDREN_KEY, at < 0 ? [...all, child] : all.map((c, i) => (i === at ? child : c)));
+    },
+
+    async deleteChild(id, deletedAt) {
+      write(
+        CHILDREN_KEY,
+        read<Child[]>(CHILDREN_KEY, []).map((c) => (c.id === id ? { ...c, deletedAt, updatedAt: deletedAt } : c)),
+      );
+      write(
+        SESSIONS_KEY,
+        read<Session[]>(SESSIONS_KEY, []).map((s) => (s.childId === id && !s.deletedAt ? { ...s, deletedAt } : s)),
+      );
+    },
+
+    async deleteSession(id, deletedAt) {
+      write(SESSIONS_KEY, read<Session[]>(SESSIONS_KEY, []).map((s) => (s.id === id ? { ...s, deletedAt } : s)));
     },
 
     async loadPreferences() {
@@ -49,17 +70,14 @@ export function createWebRepository(storage: KeyValueStorage): Repository {
     },
 
     async latestSession(childId) {
-      const sessions = read<Session[]>(SESSIONS_KEY, []).filter((s) => (s.childId ?? null) === childId);
-      return sessions.reduce<Session | null>(
+      return sessionsOf(childId).reduce<Session | null>(
         (latest, s) => (latest === null || s.startedAt > latest.startedAt ? s : latest),
         null,
       );
     },
 
     async listSessions(childId) {
-      return read<Session[]>(SESSIONS_KEY, [])
-        .filter((s) => (s.childId ?? null) === childId)
-        .sort((a, b) => b.startedAt - a.startedAt);
+      return sessionsOf(childId).sort((a, b) => b.startedAt - a.startedAt);
     },
 
     async listResponses(sessionId) {

@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
+import { newId } from '../db/ids';
 import { repository } from '../db/repository';
 import { DEFAULT_PREFERENCES, type Child, type ItemResponse, type Preferences, type Session } from '../db/types';
 import { ITEM_CODES } from '../items/registry';
@@ -33,6 +34,12 @@ interface SessionStore {
   attempts: Partial<Record<ItemCode, number>>;
   /** 아이를 등록하고 그 아이를 고른다 */
   addChild(nickname: string, birthMonth: string): Child;
+  /** 아이의 별명·생년월을 고친다 */
+  updateChild(childId: string, nickname: string, birthMonth: string): void;
+  /** 아이와 그 아이의 진단을 지운다(숨김). 고른 아이였으면 "아이 고르지 않음"으로 돌아간다. */
+  deleteChild(childId: string): void;
+  /** 진단 하나를 지운다(숨김). 보고 있던 진단이면 남은 것 중 가장 최근 진단을 연다. */
+  deleteSession(sessionId: string): void;
   /** 아이를 고른다 (null이면 아이 없이). 그 아이의 가장 최근 회기를 불러온다. */
   selectChild(childId: string | null): void;
   setAdultRole(role: Session['adultRole']): void;
@@ -67,7 +74,7 @@ export function scoresOf(responses: Responses): Partial<Record<ItemCode, Score>>
 }
 
 const newSession = ({ currentChildId, adultRole }: Preferences): Session => ({
-  id: `session-${Date.now()}`,
+  id: newId('session'),
   childId: currentChildId,
   type: 'pre',
   startedAt: Date.now(),
@@ -153,7 +160,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const addChild = useCallback(
     (nickname: string, birthMonth: string) => {
-      const child: Child = { id: `child-${Date.now()}`, nickname, birthMonth, createdAt: Date.now() };
+      const now = Date.now();
+      const child: Child = { id: newId('child'), nickname, birthMonth, createdAt: now, updatedAt: now, deletedAt: null };
       setChildList((prev) => [...prev, child]);
       persist(repository.saveChild(child));
       // 새 아이는 아직 기록이 없다
@@ -173,6 +181,40 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       loadLatest(childId).catch((e) => console.warn('기록을 불러오지 못했어요', e));
     },
     [commitPreferences, loadLatest],
+  );
+
+  const updateChild = useCallback((childId: string, nickname: string, birthMonth: string) => {
+    setChildList((prev) => {
+      const current = prev.find((c) => c.id === childId);
+      if (!current) return prev;
+      const updated: Child = { ...current, nickname, birthMonth, updatedAt: Date.now() };
+      persist(repository.saveChild(updated));
+      return prev.map((c) => (c.id === childId ? updated : c));
+    });
+  }, []);
+
+  const deleteChild = useCallback(
+    (childId: string) => {
+      setChildList((prev) => prev.filter((c) => c.id !== childId));
+      persist(repository.deleteChild(childId, Date.now()));
+      if (preferencesRef.current.currentChildId === childId) selectChild(null);
+    },
+    [selectChild],
+  );
+
+  const deleteSession = useCallback(
+    (sessionId: string) => {
+      setPastSessions((prev) => prev.filter((s) => s.id !== sessionId));
+      const deleting = repository.deleteSession(sessionId, Date.now());
+      persist(deleting);
+      if (sessionRef.current?.id === sessionId) {
+        // 지운 뒤에 다시 불러와야 지운 진단이 "가장 최근"으로 돌아오지 않는다
+        deleting
+          .then(() => loadLatest(preferencesRef.current.currentChildId))
+          .catch((e) => console.warn('기록을 불러오지 못했어요', e));
+      }
+    },
+    [loadLatest],
   );
 
   const setAdultRole = useCallback(
@@ -223,7 +265,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const s = ensureSession();
       const response = withScore({
         ...input,
-        id: `${s.id}-${input.itemCode}-${Date.now()}`,
+        id: newId(`response-${input.itemCode}`),
         sessionId: s.id,
         strategyOverride: null,
         helped: false,
@@ -286,6 +328,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       next: nextItem(ITEM_CODES, scores),
       attempts,
       addChild,
+      updateChild,
+      deleteChild,
+      deleteSession,
       selectChild,
       setAdultRole,
       openSession,
@@ -305,6 +350,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     responses,
     attempts,
     addChild,
+    updateChild,
+    deleteChild,
+    deleteSession,
     selectChild,
     setAdultRole,
     openSession,

@@ -111,3 +111,49 @@ describe('createWebRepository', () => {
     expect(await createWebRepository(storage).latestSession(null)).toBeNull();
   });
 });
+
+describe('고치기·지우기 (지운 시각만 적는 숨김)', () => {
+  const child = (id: string, createdAt: number) => ({ id, nickname: id, birthMonth: '2021-05', createdAt });
+
+  it('아이를 고쳐도 등록한 순서는 그대로다', async () => {
+    const repo = createWebRepository(memoryStorage());
+    await repo.saveChild(child('a', 1));
+    await repo.saveChild(child('b', 2));
+    await repo.saveChild({ ...child('a', 1), nickname: '하늘', updatedAt: 5 });
+    expect((await repo.listChildren()).map((c) => c.nickname)).toEqual(['하늘', 'b']);
+  });
+
+  it('아이를 지우면 목록과 그 아이의 진단이 함께 사라지고, 다른 아이는 그대로다', async () => {
+    const repo = createWebRepository(memoryStorage());
+    await repo.saveChild(child('a', 1));
+    await repo.saveChild(child('b', 2));
+    await repo.createSession({ ...session('a1', 100), childId: 'a' });
+    await repo.createSession({ ...session('b1', 200), childId: 'b' });
+
+    await repo.deleteChild('a', 999);
+    expect((await repo.listChildren()).map((c) => c.id)).toEqual(['b']);
+    expect(await repo.listSessions('a')).toEqual([]);
+    expect(await repo.latestSession('a')).toBeNull();
+    expect((await repo.latestSession('b'))?.id).toBe('b1');
+  });
+
+  it('진단을 지우면 목록에서 빠지고, 가장 최근 진단은 남은 것 중에서 찾는다', async () => {
+    const repo = createWebRepository(memoryStorage());
+    await repo.createSession(session('old', 100));
+    await repo.createSession(session('new', 200));
+
+    await repo.deleteSession('new', 999);
+    expect((await repo.listSessions(null)).map((s) => s.id)).toEqual(['old']);
+    expect((await repo.latestSession(null))?.id).toBe('old');
+  });
+
+  it('지운 기록도 기기에는 남아 있다 (나중에 동기화·되살리기에 쓴다)', async () => {
+    const storage = memoryStorage();
+    const repo = createWebRepository(storage);
+    await repo.saveChild(child('a', 1));
+    await repo.deleteChild('a', 999);
+    expect(JSON.parse(storage.getItem('number-app:children') ?? '[]')).toEqual([
+      { ...child('a', 1), deletedAt: 999, updatedAt: 999 },
+    ]);
+  });
+});

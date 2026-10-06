@@ -11,6 +11,11 @@ import type { StrategyCode } from './types';
 export const ZONE_TRAY = 0;
 /** ✓를 누른 때도 기록한다: 9 × 100 + 몇 번째 ✓인지(0부터). E1에서 나눔의 경계를 알 수 있다. */
 export const ZONE_DONE = 9;
+/**
+ * E1: 쟁반에 구슬이 남은 채 ✓를 눌러 "구슬을 모두 담아 줘"를 다시 들려준 때: 8 × 100 + 몇 번째 나눔인지.
+ * 이 ✓는 나눔으로 세지 않는다 (사용자 결정 2026-10-06, 문항마다 처음 한 번만).
+ */
+export const ZONE_REMIND = 8;
 
 export function encodeMove(zone: number, objectIndex: number): number {
   return zone * 100 + objectIndex;
@@ -50,6 +55,12 @@ export function countSplitWays(splits: number[], total: number): number {
     }
   }
   return ways.size;
+}
+
+/** 구슬을 다 담지 않았거나 한쪽 접시가 빈 나눔. 방법으로 세지 않고, 어른 화면에 "덜 담음"으로 보인다. */
+export function isIncompleteSplit(code: number, total: number): boolean {
+  const [left, right] = decodeSplit(code);
+  return left < 1 || right < 1 || left + right !== total;
 }
 
 /** E1: 2가지 이상 2점, 1가지 1점, 없으면 0점 */

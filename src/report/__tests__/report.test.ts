@@ -101,6 +101,12 @@ describe('recommendations (4절 표)', () => {
     ]);
   });
 
+  it('D1 0점도 상자 이어세기 (4절 표에 더한 줄)', () => {
+    expect(signals(allTwo({ D1: r(0, 'COUNT_ALL') }))).toEqual([['이어세기 안 됨 (D1 0점)', [5]]]);
+    expect(signals(allTwo({ D1: r(0, 'COUNT_ON') }))).toEqual([['이어세기 안 됨 (D1 0점)', [5]]]);
+    expect(signals(allTwo({ D1: r(2, 'COUNT_ON') }))).toEqual([]);
+  });
+
   it('E, F 신호', () => {
     expect(signals(allTwo({ A3: r(0), E1: r(1, 'SINGLE_WAY'), E2: r(0), F1: r(0), F3: r(0) }))).toEqual([
       ['6에서 못 멈춤', [2]],

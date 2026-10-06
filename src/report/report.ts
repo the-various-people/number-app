@@ -130,6 +130,10 @@ export function recommendations(results: Results): Recommendation[] {
   if (has('D1') && strategy('D1') === 'COUNT_ALL' && score('D1') === 1) {
     out.push({ signal: '모두 다시 세기', items: ['D1'], activities: [5], level: 'concrete' });
   }
+  // 4절 표에는 없지만 사용자가 더하기로 했다(2026-10-06): 틀렸어도 이어세기가 아직 안 된 것은 같다.
+  if (has('D1') && score('D1') === 0) {
+    out.push({ signal: '이어세기 안 됨 (D1 0점)', items: ['D1'], activities: [5], level: 'concrete' });
+  }
   if (has('D2') && strategy('D2') === 'DELAYED') {
     out.push({ signal: '다음 수 지연', items: ['D2'], activities: [9], level: 'semiConcrete' });
   }

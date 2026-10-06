@@ -6,6 +6,7 @@ import {
   encodeSplit,
   evaluateBasket,
   evaluateSplit,
+  isIncompleteSplit,
 } from '../drag';
 import { scoreResponse } from '../score';
 
@@ -62,5 +63,14 @@ describe('E1: 구슬 5개 나눠 담기', () => {
 
   it('도움 줌이면 최대 1점', () => {
     expect(scoreResponse({ itemCode: 'E1', correct: true, strategy: 'MULTI_WAY', helped: true })).toBe(1);
+  });
+});
+
+describe('isIncompleteSplit (덜 담음)', () => {
+  it('5개를 모두 두 접시에 나눠야 덜 담음이 아니다', () => {
+    expect(isIncompleteSplit(encodeSplit(2, 3), 5)).toBe(false);
+    expect(isIncompleteSplit(encodeSplit(3, 1), 5)).toBe(true);
+    expect(isIncompleteSplit(encodeSplit(5, 0), 5)).toBe(true);
+    expect(isIncompleteSplit(encodeSplit(0, 2), 5)).toBe(true);
   });
 });

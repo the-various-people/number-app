@@ -1,5 +1,5 @@
 import { BOX_TARGET } from '../scoring/choice';
-import { decodeMove, decodeSplit, ZONE_DONE } from '../scoring/drag';
+import { decodeMove, decodeSplit, isIncompleteSplit, ZONE_DONE, ZONE_REMIND } from '../scoring/drag';
 import type { ItemAnswer, ItemCode } from '../scoring/types';
 import items from './items.json';
 import type { ItemDef } from './types';
@@ -27,7 +27,11 @@ export function expectedLabel(def: ItemDef): string {
 /** 어른 화면에 보이는 답 */
 export function formatAnswer(def: ItemDef, answer: ItemAnswer): string {
   if (def.kind === 'dragSplit' && Array.isArray(answer)) {
-    return answer.length ? answer.map((code) => decodeSplit(code).join('+')).join(', ') : '담지 않음';
+    return answer.length
+      ? answer
+          .map((code) => decodeSplit(code).join('+') + (isIncompleteSplit(code, def.total) ? ' (덜 담음)' : ''))
+          .join(', ')
+      : '담지 않음';
   }
   if (def.kind === 'dragBasket') return `${answer}개`;
   if (Array.isArray(answer)) return answer.length ? `${answer.join(', ')}번째` : '고르지 않음';
@@ -90,6 +94,7 @@ export function touchTargets(def: ItemDef): TouchTargets | null {
         name: (i) => {
           const { zone, objectIndex } = decodeMove(i);
           if (zone === ZONE_DONE) return `✓ (${objectIndex + 1}번째)`;
+          if (zone === ZONE_REMIND) return '✓ 덜 담음 → "모두 담아 줘" 다시 안내';
           return `구슬 ${objectIndex + 1} → ${zoneNames[zone] ?? '?'}`;
         },
         showMissed: false,

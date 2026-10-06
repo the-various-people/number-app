@@ -8,6 +8,7 @@ import {
   evaluateBasket,
   evaluateSplit,
   ZONE_DONE,
+  ZONE_REMIND,
   ZONE_TRAY,
   type ItemAnswer,
   type StrategyCode,
@@ -60,6 +61,8 @@ export function DragItem({ def, sticker, onAnswer }: Props) {
   /** 끌고 있는 구슬이 처음 있던 칸. 그 칸을 위로 올려야 다른 칸 위로 끌 때 가려지지 않는다. */
   const [dragFrom, setDragFrom] = useState<number | null>(null);
 
+  /** E1: "구슬을 모두 담아 줘"를 이미 들려줬는지 (문항마다 한 번) */
+  const remindedRef = useRef(false);
   const zoneRefs = useRef<Record<number, View | null>>({});
   const aliveRef = useRef(true);
   useEffect(() => () => {
@@ -126,8 +129,19 @@ export function DragItem({ def, sticker, onAnswer }: Props) {
       return;
     }
 
-    // E1: 두 번째부터는 접시를 비운 채 ✓를 누르면 더 없다는 뜻으로 끝낸다.
+    // E1: 쟁반에 구슬이 남았으면 처음 한 번만 "모두 담아 줘"를 다시 들려준다.
+    // 정오를 알려 주는 것이 아니라 지시를 다시 들려주는 것이고, 기회(나눔 횟수)는 줄지 않는다.
     const empty = placed === 0;
+    if (!empty && inZone(ZONE_TRAY) > 0 && !remindedRef.current) {
+      remindedRef.current = true;
+      setTouches([...touches, { targetIndex: encodeMove(ZONE_REMIND, splits.length), tMs: elapsed() }]);
+      setRetrying(true);
+      await promptPlayer.play('drag.putAll');
+      if (aliveRef.current) setRetrying(false);
+      return;
+    }
+
+    // E1: 두 번째부터는 접시를 비운 채 ✓를 누르면 더 없다는 뜻으로 끝낸다.
     const nextSplits = empty ? splits : [...splits, encodeSplit(inZone(1), inZone(2))];
     if (empty || nextSplits.length >= def.maxTries) {
       const result = evaluateSplit({ splits: nextSplits, total: def.total });

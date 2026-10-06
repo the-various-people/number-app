@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { formatAge } from '../../src/children/age';
 import { ChildPanel, roleLabel } from '../../src/components/adult/ChildPanel';
+import { ExportPanel } from '../../src/components/adult/ExportPanel';
 import { ReportCard } from '../../src/components/adult/ReportCard';
 import { expectedLabel, formatAnswer, ITEMS, touchTargets, type TouchTargets } from '../../src/items/registry';
 import type { ItemDef } from '../../src/items/types';
@@ -69,6 +70,7 @@ export default function AdultHomeScreen() {
             ))}
           </View>
         ))}
+        <ExportPanel />
       </ScrollView>
     </SafeAreaView>
   );
